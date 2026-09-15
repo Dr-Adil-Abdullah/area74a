@@ -15,7 +15,7 @@ Yeh Pakistan ki medical store (pharmacy) POS hai. Windows `.exe` + Android `.apk
 | Base code is repo mein copy | **nahi** — `PROPOSED_CHANGES.md` ke approve ka wait |
 | Application code | **nahi** — standing order: no code until proposal approved |
 
-**Agela kaam:** owner `PROPOSED_CHANGES.md` approve kare → base code copy → Phase 2 (foundation freeze) → Phase 3 (Settings).
+**Agela kaam:** Flutter wali machine par `flutter pub get && flutter analyze && flutter test`. Phir Phase 3 Settings (schemaVersion 8).
 
 ## 15 Sep 2026 ke locked decisions
 
@@ -31,7 +31,7 @@ Yeh Pakistan ki medical store (pharmacy) POS hai. Windows `.exe` + Android `.apk
 | `AREA_72A_C.md` | Owner only | Raw requirements / decisions / links |
 | `CLEAN_COMPLETE_PROJECT_CONTEXT.md` | AI, after owner answers | Merged truth for building |
 | `AI_UNDERSTANDING.md` | AI | Base-code analysis, reuse vs don't-touch |
-| `PROPOSED_CHANGES.md` | AI | Schemas + exceptions — **approve before code** |
+| `PROPOSED_CHANGES.md` | AI | Schemas — **approved 15 Sep 2026** |
 | `AI_ROADMAP.md` | AI | 13 phases, task status |
 | `AI_PROGRESS.md` | AI | Session log — never delete old sessions |
 | `READ_ME_FIRST.md` | AI | This file |

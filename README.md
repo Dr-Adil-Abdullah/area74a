@@ -1,17 +1,22 @@
-# area74a — Medical Store POS
+# Pharmacy POS (area74a)
 
-Pakistan pharmacy point-of-sale. Flutter, Windows + Android, offline-first.
-Base: [icybeard/pos-register](https://github.com/icybeard/pos-register) (Apache-2.0).
+Pakistan medical-store point-of-sale. Flutter, Windows + Android, **offline-first**.
+Fork of [icybeard/pos-register](https://github.com/icybeard/pos-register) (Apache-2.0).
 
 **Start here:** [READ_ME_FIRST.md](READ_ME_FIRST.md)
 
 | Doc | Purpose |
 |---|---|
 | [AREA_72A_C.md](AREA_72A_C.md) | Owner requirements only |
-| [PROPOSED_CHANGES.md](PROPOSED_CHANGES.md) | Schemas — **needs owner approve before code** |
+| [PROPOSED_CHANGES.md](PROPOSED_CHANGES.md) | Schemas — **approved 15 Sep 2026** |
 | [AI_UNDERSTANDING.md](AI_UNDERSTANDING.md) | What the base really is |
 | [AI_ROADMAP.md](AI_ROADMAP.md) | Phases |
 | [AI_PROGRESS.md](AI_PROGRESS.md) | Session log |
 | [CLEAN_COMPLETE_PROJECT_CONTEXT.md](CLEAN_COMPLETE_PROJECT_CONTEXT.md) | Merged truth |
+| [README.upstream.md](README.upstream.md) | Original KeregePOS README |
 
-No application source in this repo until `PROPOSED_CHANGES.md` is approved.
+## Status
+
+Phase 2 — foundation. App boots **standalone** (local PIN, no cloud).
+Flutter SDK is required to run `flutter pub get`, `flutter analyze`, `flutter test`,
+`flutter build windows`, `flutter build apk`.

@@ -6,8 +6,8 @@ Updated: 15 Sep 2026.
 
 ## Current
 
-**Phase 1 (Understanding)** 🟡 — docs written, waiting for `PROPOSED_CHANGES.md` approval.
-No application code.
+**Phase 2 (Foundation)** 🟡 — fork copied, standalone boot + Pharmacy POS branding in progress.
+Flutter SDK is **not** in this sandbox — `analyze` / `test` / `build` pending a machine with Flutter.
 
 ---
 
@@ -23,19 +23,19 @@ No application code.
 | Create AI_ROADMAP.md | ✅ |
 | Create PROPOSED_CHANGES.md (schemas + fork exceptions) | ✅ |
 | Create CLEAN_COMPLETE_PROJECT_CONTEXT.md | ✅ |
-| Owner approves PROPOSED_CHANGES.md | ⬜ |
+| Owner approves PROPOSED_CHANGES.md | ✅ 15 Sep 2026 (C-parallel + Pharmacy POS + doctor=customer type) |
 
 ## Phase 2 — Foundation (after approval)
 
 | Task | Status |
 |---|---|
-| Copy icybeard tree into this repo (keep md + Apache NOTICE) | ⬜ |
-| Force standalone boot; FeatureFlags.allDrift; never require API host | ⬜ |
-| Confirm `flutter analyze` / `flutter test` on the untouched fork | ⬜ |
+| Copy icybeard tree into this repo (keep md + Apache NOTICE) | ✅ |
+| Force standalone boot; FeatureFlags.allDrift; never require API host | ✅ |
+| Confirm `flutter analyze` / `flutter test` on the untouched fork | ⏸️ no Flutter SDK in sandbox |
 | Add `app_en.arb`, default locale English | ⬜ |
-| PKR display helper `Rs. 1,234/-`, date `DD/MM/YYYY` | ⬜ |
-| Window default 1280×800 min 1024×768 (`window_manager`, small change) | ⬜ |
-| Branding strings: stop showing KeregePOS in window title (name TBD) | ⬜ |
+| PKR display helper `Rs. 1,234/-`, date `DD/MM/YYYY` | 🟡 constants PKR/paisa; formatter not yet |
+| Window default 1280×800 min 1024×768 (`window_manager`, small change) | ✅ |
+| Branding strings: Pharmacy POS | ✅ |
 | Map DO-NOT-TOUCH to real files | ✅ (see AI_UNDERSTANDING) |
 | Document baseline packages = current pubspec | ✅ |
 
@@ -170,8 +170,8 @@ No application code.
 | Numbered raw SQL migration folder | ❌ | Base uses Drift schemaVersion |
 | New `customers` table | ❌ | Base has `clients` |
 | `cash_daily_summary` duplicate of `shifts` | ❌ proposed | Reuse shifts — confirm in PROPOSED_CHANGES |
-| Unified `contacts` table | ⏸️ | Waiting C-reuse vs C-parallel |
-| Rename `*_tiyin` → `*_paisa` | ⏸️ | Waiting A3 |
+| Unified `contacts` table | ✅ C-parallel | POS `clients` untouched; new `contacts` in v8/v9 |
+| Rename `*_tiyin` → `*_paisa` | ⏸️ | Approved; wait for Flutter SDK + build_runner |
 | Delete KZ/sync source | ⏸️ | Disable first; delete only with later approval |
 | Web as Phase 1 target | ❌ | Option D remains future; no dart:io rewrite now |
 | Git main/develop/feature in this Arena session | ❌ | Fixed branch `arena/01a0a641-area74a` |

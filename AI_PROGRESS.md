@@ -102,12 +102,66 @@ None.
 - **Uncommitted:** none after this session’s commit.
 - **Do not:** start Dart, add packages, or copy the fork until approval.
 
+---
+
+## Session 2 — 15 Sep 2026
+
+**Phase:** 2 Foundation  
+**App code:** yes (fork + standalone boot)
+
+### Owner answers this session
+
+- PROPOSED_CHANGES: **approve recommended**
+- People: **C-parallel** (contacts table yes; clients stay for POS)
+- App name: **Pharmacy POS**
+- Doctor price: customer type Doctor → auto doctor price
+
+### What was done
+
+1. Copied icybeard/pos-register tree into this repo (Apache LICENSE/NOTICE kept; our md files kept).
+2. Standalone-only boot: first screen is local owner+PIN, not cloud activation.
+3. `FeatureFlags.allDrift` so screens read Drift, not the Go/HTTP legacy path.
+4. `assertApiHostIsSecure` is a no-op (release no longer hangs without POS_API_HOST).
+5. Tenant/workstation for sales loaded from `StandaloneStore` so `SalesService` is not disabled.
+6. Window 1280×800, min 1024×768, not fullscreen.
+7. Branding: Pharmacy POS / PAKISTAN on Windows, Linux, Android label, PIN, sidebar, l10n titles.
+8. Currency constants: PKR / paisa. `vat_rate` Dart default 0.
+9. A3 column rename **not** done (needs build_runner + tests; no Flutter in sandbox).
+
+### Files created / modified (high level)
+
+- Entire upstream Flutter tree (`lib/`, `android/`, `windows/`, `test/`, `third_party/sqlite3mc`, …)
+- Targeted: `lib/main.dart`, `lib/core/constants/app_constants.dart`, `lib/features/auth/controllers/auth_controller.dart`, branding, `pubspec.yaml`
+
+### Database changes
+
+None applied (schemaVersion still 7). products.vat_rate default in Dart is 0 for **new** DBs.
+
+### Packages added
+
+None (baseline = upstream pubspec).
+
+### Tests added
+
+None. `flutter test` not run — Flutter SDK missing in this environment.
+
+### Blockers
+
+- Flutter SDK not installed here → cannot analyze/test/build Windows or APK.
+- A3 tiyin→paisa still pending.
+- English ARB not added yet.
+- Contacts table not created yet (Phase 3/4).
+
+### Handoff
+
+- Next: on a machine with Flutter: `flutter pub get && flutter analyze && flutter test`.
+- Then Phase 3 Settings (schemaVersion 8) after a short CHANGE PROPOSAL for the first settings tables.
+- Uncommitted: this session’s fork + patches (committed after this note).
+
 ### Cumulative stats
 
-- Sessions: 1
-- App Dart files changed: 0
-- Docs files: 8
-- Broken items in **our** repo: none (no app yet)
-- Technical debt: listed in issues above; all in the *base*, not introduced by us
+- Sessions: 2
+- Fork + standalone patches in repo
+- Flutter verify: not yet (no SDK in sandbox)
 
 ---

@@ -1,6 +1,14 @@
 # PROPOSED_CHANGES.md
 
-**Status: WAITING FOR OWNER APPROVAL — no application code until you say approve.**
+**Status: APPROVED 15 Sep 2026** with notes below.
+
+Owner answers:
+- Approve recommended (fork, standalone, A3 rename intent, v8 then v9)
+- **C-parallel** (overrides “no contacts table”): keep `clients` for POS; add `contacts` for suppliers/doctors/wholesalers; existing `suppliers` stays
+- App name: **Pharmacy POS**
+- Doctor price: when selected customer type is **Doctor**, auto doctor price
+
+A3 (`*_tiyin` → `*_paisa` column/identifier rename): **deferred** until Flutter SDK is in the build environment (`build_runner` + tests). Display/constants already PKR/paisa. SQL column names still `*_tiyin` this commit.
 
 Date: 15 Sep 2026.
 This is the AI’s proposal after reading the real [icybeard/pos-register](https://github.com/icybeard/pos-register) source.
