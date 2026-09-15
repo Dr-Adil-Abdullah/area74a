@@ -392,3 +392,21 @@ Please tick in your reply:
 **Recommendation: approve all, with A3=yes and C-reuse.**
 
 After your approve, next commit is the fork copy + A2 standalone boot, still **no** v8 tables until Phase 3 starts.
+
+---
+
+## K. Owner additions 15 Sep 2026 (after approve) — needs confirm
+
+These extend Settings. Recommendation: **yes, all of this belongs in Settings**, not in code.
+
+| Item | Proposal |
+|---|---|
+| K1 Currency | Not hardcoded PKR. Settings: currency code, symbol (`Rs.` / `$` / `₨`), decimal digits, subunit (paisa). Default seed: PKR, `Rs.`, 2 decimals, 100 subunits. Storage stays INTEGER subunits. |
+| K2 Shop profile | Already in D1 `store_profiles`. |
+| K3 Price lists | Not two hardcoded tiers. Settings list `price_tiers` (seed: Retail, VIP, Doctor). Product has one price per active tier (paisa). POS uses the tier of the selected customer type. |
+| K4 Discount basis | Settings: discount applies to `sale_total` **or** `profit` (sale − WAC). Default `sale_total`. |
+| K5 Product kinds | Settings `product_kinds` (seed: Pharmacy, Veterinary). Custom fields can be bound to a kind so vet gets ml/species, pharmacy gets strength/dosage. |
+| K6 Customer fields | Custom fields on `clients` (already planned). Name/phone stay core columns. Extra fields owner-defined. |
+| K7 Platform | Keep Flutter Windows+Android **now** (100% offline). Web later from same codebase. Pure web now would weaken the offline promise. |
+
+**Need owner yes/no on K1–K7, especially K7 (Flutter vs web now).**

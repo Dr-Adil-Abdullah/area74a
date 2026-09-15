@@ -6,8 +6,8 @@ Updated: 15 Sep 2026.
 
 ## Current
 
-**Phase 2 (Foundation)** 🟡 — fork copied, standalone boot + Pharmacy POS branding in progress.
-Flutter SDK is **not** in this sandbox — `analyze` / `test` / `build` pending a machine with Flutter.
+**Phase 3 (Settings)** 🟡 — hub + store/currency/tax/discount + dictionaries on existing settings table.
+POS still uses old money format until a later wiring change. Flutter SDK still missing in sandbox.
 
 ---
 
@@ -43,17 +43,21 @@ Flutter SDK is **not** in this sandbox — `analyze` / `test` / `build` pending 
 
 | Task | Status |
 |---|---|
-| Drift schemaVersion 8 (D1 tables + categories.kind) | ⬜ |
-| Store Information screen | ⬜ |
-| Generic dictionary CRUD (add/edit/disable/search/up-down) | ⬜ |
-| Categories tree (product/expense/contact kinds, parent move) | ⬜ |
-| Contact types | ⬜ |
-| Payment methods | ⬜ |
-| Units | ⬜ |
-| Dosage forms | ⬜ |
-| Tax rates + Tax Settings master switch (ON/OFF, name, %, incl/excl) | ⬜ |
-| Expense heads (hierarchical) | ⬜ |
+| Drift schemaVersion 8 (D1 tables + categories.kind) | ⏸️ no build_runner yet; JSON in `settings` table instead |
+| Store Information screen | ✅ |
+| Generic dictionary CRUD (add/edit/disable/search/up-down) | ✅ |
+| Categories tree (product/expense/contact kinds, parent move) | 🟡 parent via sub-item; drag-drop later |
+| Contact types | ✅ |
+| Payment methods | ✅ |
+| Units | ✅ |
+| Dosage forms | ✅ |
+| Tax rates + Tax Settings master switch (ON/OFF, name, %, incl/excl) | ✅ master switch; extra rates list later |
+| Expense heads (hierarchical) | ✅ |
 | Custom fields registry UI | ⬜ |
+| Currency in Settings (code, symbol, subunit) | ✅ |
+| Price tiers list (Retail/VIP/Doctor + add) | ✅ |
+| Product kinds (Pharmacy/Veterinary + add) | ✅ |
+| Discount basis (total vs profit) | ✅ setting only; POS not wired yet |
 | Alert / backup / printer **keys** persisted (behaviour later) | ⬜ |
 | Users & roles = reuse existing users feature | ⬜ |
 | Theme & language (English default) | ⬜ |

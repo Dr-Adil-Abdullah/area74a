@@ -469,6 +469,27 @@ text
     Windows Sync      Android Sync
          └───────┬─────────┘
             OPTIONAL CLOUD (future)
+PART EIGHT — OWNER, 15 SEP 2026 (Urdu, Arena session)
+
+Nothing in the app must be hardcoded if it is business data.
+
+Currency: owner must change symbol and display themselves (Rs., $, or any sign).
+Shop name and shop details: owner-editable.
+Categories and sub-categories: owner-editable.
+Customer fields (name, number, other details): owner must be able to change later.
+Products: pharmacy products and veterinary products have different details
+(e.g. how many ml). Prices: simple customer, VIP, doctor.
+Discount: owner chooses whether discount is on the total amount or on profit.
+All of the above must be managed from one Settings folder/module.
+
+Offline remains the main goal: when there is no internet, the app uses the last
+local data; when internet returns, local changes upload. Downloading an app is
+not mandatory — if a web-based system can be better, the owner is willing to
+work on web too.
+
+Owner asked for a complete explanation in Pakistani Urdu script of: how Flutter
+will be tested along the way; whether to change stack now; when main work starts.
+
 END OF AREA_72A_C — USER INPUT ONLY.
 For the AI's audit, findings, proposed schemas and task roadmap, see the other documents
 (READ_ME_FIRST.md, AI_UNDERSTANDING.md, PROPOSED_CHANGES.md, AI_ROADMAP.md).

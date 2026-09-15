@@ -165,3 +165,40 @@ None. `flutter test` not run — Flutter SDK missing in this environment.
 - Flutter verify: not yet (no SDK in sandbox)
 
 ---
+
+## Session 3 — 15 Sep 2026
+
+**Phase:** 3 Settings (start)
+
+### Owner (Urdu)
+
+Nothing business-related must be hardcoded. Currency symbol changeable. Shop details
+changeable. Customer fields later-editable. Pharmacy vs veterinary details. Prices:
+simple, VIP, doctor. Discount on total **or** profit. One Settings folder.
+Offline last-data; upload when net returns. Web OK if better.
+Asked how Flutter is tested.
+
+### Decisions
+
+- Flutter now, web later
+- Currency in Settings, default PKR / Rs.
+- Price tiers: Retail, VIP, Doctor + owner can add more
+- Start Settings now
+
+### What was done
+
+Settings hub on existing `settings` key/value (no new Drift tables — Flutter SDK
+install failed here, so no `build_runner`).
+Screens: store, currency, tax switch, discount basis, dictionaries
+(categories, kinds, units, dosage, price tiers, contact types, payments, expense heads).
+Old hardware Settings remains under Advanced.
+
+Not yet: POS/receipts reading the new currency/tax/tiers; custom fields UI;
+schemaVersion 8 SQL tables.
+
+### Handoff
+
+Next: wire Money.format + POS price tier from these keys (small approved change),
+or custom fields, when Flutter is available for tests.
+
+---

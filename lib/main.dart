@@ -58,6 +58,7 @@ import 'features/products/screens/products_screen.dart';
 import 'features/users/screens/cashiers_screen.dart';
 import 'features/sales/screens/shift_screen.dart';
 import 'features/clients/screens/debts_screen.dart';
+import 'features/settings/screens/pharmacy_settings_home.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'features/analytics/screens/analytics_screen.dart';
 import 'features/delivery/screens/delivery_screen.dart';
