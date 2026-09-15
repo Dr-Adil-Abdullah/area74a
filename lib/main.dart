@@ -58,6 +58,8 @@ import 'features/products/screens/products_screen.dart';
 import 'features/users/screens/cashiers_screen.dart';
 import 'features/sales/screens/shift_screen.dart';
 import 'features/clients/screens/debts_screen.dart';
+import 'data/repositories/settings_repository.dart';
+import 'features/settings/pharmacy_settings_store.dart';
 import 'features/settings/screens/pharmacy_settings_home.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'features/analytics/screens/analytics_screen.dart';
@@ -372,6 +374,7 @@ class _PosAppState extends State<PosApp> {
           _activeWorkstationId = standalone.storeId;
           _salesGuards = _buildSalesGuards();
         });
+        await _hydrateMoneyConfig(standalone.tenantId);
         return;
       }
       final tokens = await _tokenStore.load();
@@ -381,9 +384,20 @@ class _PosAppState extends State<PosApp> {
           _activeWorkstationId = tokens.workstationId;
           _salesGuards = _buildSalesGuards();
         });
+        await _hydrateMoneyConfig(tokens.tenantId);
       }
     } on Object {
       // Secure storage unavailable — accept the legacy path.
+    }
+  }
+
+  Future<void> _hydrateMoneyConfig(String? tenantId) async {
+    if (tenantId == null || tenantId.isEmpty) return;
+    try {
+      await PharmacySettingsStore(SettingsRepository(_db, tenantId: tenantId))
+          .hydrateMoneyConfig();
+    } on Object {
+      // Keep PKR / tax-off defaults.
     }
   }
 

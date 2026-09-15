@@ -7,6 +7,7 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/money_config.dart';
 import '../../../core/widgets/num_pad.dart';
 import '../../../services/api_client.dart';
 
@@ -716,7 +717,7 @@ class _AmountDisplay extends StatelessWidget {
           const SizedBox(width: 14),
           Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: cs.onSurfaceVariant)),
           const Spacer(),
-          Text(value.isEmpty ? '0' : '$value ₸',
+          Text(value.isEmpty ? '0' : '${MoneyConfig.symbol} $value',
             style: TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.w700,
               color: isActive ? cs.onSurface : cs.onSurfaceVariant)),
           if (isActive) ...[

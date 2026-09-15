@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../utils/money_config.dart';
+
 /// Hi-fi design tokens + shared widgets for the "Variant C — Action-grid"
 /// direction locked in the design handoff (hifi/POS Register Hi-fi.html).
 ///
@@ -790,6 +792,7 @@ class HifiColumn {
 class HifiTotals extends StatelessWidget {
   final String? subtotal;
   final String? vat;
+  final String? vatLabel;
   final String totalLabel;
   final String total;
   final Color? totalColor;
@@ -799,6 +802,7 @@ class HifiTotals extends StatelessWidget {
     super.key,
     this.subtotal,
     this.vat,
+    this.vatLabel,
     required this.totalLabel,
     required this.total,
     this.totalColor,
@@ -811,7 +815,8 @@ class HifiTotals extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         if (subtotal != null) _row('Подытог', subtotal!),
-        if (vat != null) _row('НДС 12%', vat!),
+        if (vat != null && (vatLabel ?? MoneyConfig.taxLineLabel).isNotEmpty)
+          _row(vatLabel ?? MoneyConfig.taxLineLabel, vat!),
         const SizedBox(height: 6),
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
           Text(

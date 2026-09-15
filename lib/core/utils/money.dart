@@ -1,56 +1,77 @@
-/// Утилиты для работы с деньгами (тиын)
+import 'money_config.dart';
+
+/// Money helpers. Storage is integer subunits (paisa). Display comes from
+/// [MoneyConfig] so the owner can change Rs. / $ from Settings.
 class Money {
   Money._();
 
-  /// Форматирует тиыны в строку с тенге
-  /// 144000 -> "1 440 ₸", -144000 -> "-1 440 ₸"
-  static String format(int tiyin) {
-    final sign = tiyin < 0 ? '-' : '';
-    final abs = tiyin.abs();
-    final tenge = abs ~/ 100;
-    final remainder = abs % 100;
+  /// Line-item format. Whole units: `Rs. 1,234/-`. With subunit: `Rs. 1,234.50`.
+  static String format(int paisa) => _format(paisa, receipt: false);
 
-    final tengeStr = _formatWithSpaces(tenge);
+  /// Final receipt total — rounded to whole currency unit, then `Rs. 1,234/-`.
+  static String formatReceipt(int paisa) => _format(roundToUnit(paisa), receipt: true);
 
-    if (remainder == 0) {
-      return '$sign$tengeStr ₸';
+  /// Whole units only (legacy name: formatTenge).
+  static String formatTenge(int paisa) => formatReceipt(paisa);
+
+  static String _format(int paisa, {required bool receipt}) {
+    final sign = paisa < 0 ? '-' : '';
+    final abs = paisa.abs();
+    final sub = MoneyConfig.subunit <= 0 ? 100 : MoneyConfig.subunit;
+    final major = abs ~/ sub;
+    final remainder = abs % sub;
+    final majorStr = _formatWithSeparators(major);
+    final sym = MoneyConfig.symbol;
+
+    if (remainder == 0 || receipt) {
+      return '$sign$sym $majorStr/-';
     }
-    return '$sign$tengeStr,${remainder.toString().padLeft(2, '0')} ₸';
+    final dec = MoneyConfig.decimals;
+    var frac = remainder.toString();
+    // pad to log10(subunit) digits then trim/pad to [dec]
+    final subDigits = sub == 1 ? 0 : sub.toString().length - 1;
+    frac = frac.padLeft(subDigits, '0');
+    if (dec <= 0) return '$sign$sym $majorStr/-';
+    if (frac.length > dec) {
+      frac = frac.substring(0, dec);
+    } else if (frac.length < dec) {
+      frac = frac.padRight(dec, '0');
+    }
+    return '$sign$sym $majorStr.$frac';
   }
 
-  /// Форматирует тенге без тиын
-  /// 144000 -> "1 440 ₸"
-  static String formatTenge(int tiyin) {
-    final tenge = tiyin ~/ 100;
-    return '${_formatWithSpaces(tenge)} ₸';
+  /// Round to nearest whole currency unit (paisa → rupee).
+  static int roundToUnit(int paisa) {
+    final sub = MoneyConfig.subunit <= 0 ? 100 : MoneyConfig.subunit;
+    final rem = paisa % sub;
+    if (rem == 0) return paisa;
+    if (rem.abs() * 2 >= sub) {
+      return paisa >= 0 ? paisa + (sub - rem) : paisa - (sub + rem);
+    }
+    return paisa - rem;
   }
 
-  /// Конвертирует тенге в тиыны
-  static int tengeToTiyin(double tenge) => (tenge * 100).round();
+  static int tengeToTiyin(double tenge) => (tenge * MoneyConfig.subunit).round();
 
-  /// Конвертирует тиыны в тенге
-  static double tiyinToTenge(int tiyin) => tiyin / 100;
+  static double tiyinToTenge(int tiyin) => tiyin / MoneyConfig.subunit;
 
-  /// Рассчитывает цену весового товара
-  /// [pricePerKgTiyin] — цена за кг в тиынах
-  /// [weightGrams] — вес в граммах
   static int calculateWeightedPrice(int pricePerKgTiyin, int weightGrams) {
     return ((weightGrams * pricePerKgTiyin) + 500) ~/ 1000;
   }
 
-  /// Рассчитывает НДС «изнутри» (включён в цену)
-  /// НДС = сумма × ставка / (100 + ставка)
-  ///
-  /// **Использует целочисленное деление (truncation)** — в точности как .NET `Calculator.VatFromInside`
-  /// и Go-сервер. Не округление! См. parity-tests в `test/calculator_parity_test.dart`.
+  /// Inclusive VAT (tax inside the price). Integer truncation — parity with
+  /// upstream calculator tests.
   static int calculateVat(int totalTiyin, int vatRate) {
     if (vatRate == 0) return 0;
     return (totalTiyin * vatRate) ~/ (100 + vatRate);
   }
 
-  /// Рассчитывает итог по строке чека (штучный или весовой), минус скидка.
-  /// Скидка не делает итог отрицательным — clamp к 0.
-  /// Зеркало .NET `Calculator.ItemTotal` / Go `domain.CalculateItemTotal`.
+  /// Exclusive VAT (added on top of the price).
+  static int calculateVatExclusive(int totalTiyin, int vatRate) {
+    if (vatRate == 0) return 0;
+    return (totalTiyin * vatRate) ~/ 100;
+  }
+
   static int calculateItemTotal({
     required bool isWeighted,
     required int basePriceTiyin,
@@ -71,8 +92,6 @@ class Money {
     return net < 0 ? 0 : net;
   }
 
-  /// Сдача покупателю: оплачено − итог. Никогда не отрицательная (клиент сам валидирует недоплату).
-  /// Зеркало .NET `Calculator.Change`.
   static int calculateChange({
     required int totalTiyin,
     required int cashTiyin,
@@ -84,18 +103,16 @@ class Money {
     return diff > 0 ? diff : 0;
   }
 
-  static String _formatWithSpaces(int number) {
+  static String _formatWithSeparators(int number) {
     final str = number.abs().toString();
     final result = StringBuffer();
     final sign = number < 0 ? '-' : '';
-
     for (int i = 0; i < str.length; i++) {
       if (i > 0 && (str.length - i) % 3 == 0) {
-        result.write(' ');
+        result.write(',');
       }
       result.write(str[i]);
     }
-
     return '$sign$result';
   }
 }

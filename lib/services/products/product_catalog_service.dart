@@ -1,4 +1,5 @@
 import '../../core/feature_flags.dart';
+import '../../core/utils/money_config.dart';
 import '../../data/database.dart';
 import '../../data/repositories/product_repository.dart';
 import '../api_client.dart';
@@ -139,7 +140,7 @@ class LegacyApiProductCatalogService implements ProductCatalogService {
         salePriceTiyin: _asInt(r['SalePrice'] ?? r['sale_price'] ?? r['sale_price_tiyin']) ?? 0,
         saleUnit: (r['SaleUnit'] ?? r['sale_unit'] ?? 'pcs') as String,
         isWeighted: (r['IsWeighted'] ?? r['is_weighted'] ?? false) as bool,
-        vatRate: _asInt(r['VATRate'] ?? r['vat_rate']) ?? 12,
+        vatRate: _asInt(r['VATRate'] ?? r['vat_rate']) ?? MoneyConfig.effectiveVatRate,
         isActive: (r['IsActive'] ?? r['is_active'] ?? true) as bool,
       );
 

@@ -9,6 +9,7 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/money_config.dart';
 import '../../../services/api_client.dart';
 import '../../../services/sales/sales_service.dart';
 import '../controllers/sales_controller.dart';
@@ -231,7 +232,7 @@ class _SearchResultsOverlay extends ConsumerWidget {
               unit: unit,
               basePrice: price,
               isWeighted: isWeighted,
-              vatRate: (p['VATRate'] as num?)?.toInt() ?? 12,
+              vatRate: MoneyConfig.effectiveVatRate,
             ));
       },
       child: Container(
@@ -445,11 +446,13 @@ class _PosTotals extends StatelessWidget {
     final subtotal = state.subtotal;
     final vat = state.vatAmount;
     final net = subtotal - vat;
+    final showTax = MoneyConfig.taxEnabled;
     return HifiTotals(
-      subtotal: Money.format(net),
-      vat: Money.format(vat),
+      subtotal: Money.format(showTax && MoneyConfig.taxType == 'inclusive' ? net : subtotal),
+      vat: showTax ? Money.format(vat) : null,
+      vatLabel: MoneyConfig.taxLineLabel,
       totalLabel: 'ИТОГО',
-      total: Money.format(state.total),
+      total: Money.format(state.payable),
     );
   }
 }
@@ -485,7 +488,7 @@ class _CartActionPanel extends ConsumerWidget {
       payTile: ActionTile(
         label: disabled
             ? 'ОПЛАТА'
-            : 'ОПЛАТА · ${Money.formatTenge(state.total)}',
+            : 'ОПЛАТА · ${Money.format(state.payable)}',
         hotkey: 'F2',
         variant: HifiTileVariant.pay,
         onTap: disabled
@@ -593,7 +596,7 @@ class _CartActionPanel extends ConsumerWidget {
       context,
       MaterialPageRoute(
         builder: (_) => PaymentScreen(
-          totalTiyin: state.total,
+          totalTiyin: state.payable,
           vatAmount: state.vatAmount,
           shiftId: shiftId,
           api: context.read<ApiClient>(),
@@ -670,14 +673,14 @@ class _CartActionPanel extends ConsumerWidget {
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(suffixText: '₸', hintText: '0'),
+          decoration: InputDecoration(suffixText: MoneyConfig.symbol, hintText: '0'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
           ElevatedButton(
             onPressed: () {
               final tenge = double.tryParse(controller.text) ?? 0;
-              ref.read(salesControllerProvider.notifier).applyDiscount((tenge * 100).round());
+              ref.read(salesControllerProvider.notifier).applyDiscount(Money.tengeToTiyin(tenge));
               Navigator.pop(ctx);
             },
             child: const Text('Применить'),
@@ -782,9 +785,9 @@ class _CartActionPanel extends ConsumerWidget {
             controller: ctrl,
             autofocus: true,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Сумма',
-              suffixText: '₸',
+              suffixText: MoneyConfig.symbol,
             ),
           ),
           const SizedBox(height: 12),
@@ -810,7 +813,7 @@ class _CartActionPanel extends ConsumerWidget {
     // disposing immediately on close is fine. Using try/finally below.
     try {
       if (tenge == null || tenge <= 0 || !context.mounted) return;
-      final tiyin = (tenge * 100).round();
+      final tiyin = Money.tengeToTiyin(tenge);
       try {
         if (deposit) {
           await api.shiftDeposit(shiftId!, tiyin);
@@ -820,7 +823,7 @@ class _CartActionPanel extends ConsumerWidget {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            '${deposit ? "Внесено" : "Изъято"}: ${Money.formatTenge(tiyin)}',
+            '${deposit ? "Внесено" : "Изъято"}: ${Money.format(tiyin)}',
           ),
           backgroundColor: PosColors.of(context).successFg,
         ));
@@ -889,7 +892,7 @@ class _TabletActionStrip extends ConsumerWidget {
               child: ActionTile(
                 label: disabled
                     ? 'ОПЛАТА'
-                    : 'ОПЛАТА · ${Money.formatTenge(state.total)}',
+                    : 'ОПЛАТА · ${Money.format(state.payable)}',
                 variant: HifiTileVariant.pay,
                 onTap: disabled ? null : () => panel._openPayment(context, ref, state),
                 fontSize: 22,

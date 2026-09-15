@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/money_config.dart';
 import '../../../services/api_client.dart';
 import '../../../services/sales/sales_service.dart';
 import '../models/cart_item.dart';
@@ -159,6 +160,14 @@ class SalesState {
 
   /// Общий НДС (тиын)
   int get vatAmount => items.fold(0, (sum, item) => sum + item.vatAmount);
+
+  /// Amount the customer pays. Exclusive tax is added on top.
+  int get payable {
+    if (MoneyConfig.taxEnabled && MoneyConfig.taxType == 'exclusive') {
+      return total + vatAmount;
+    }
+    return total;
+  }
 
   /// Количество позиций
   int get itemCount => items.length;
@@ -488,7 +497,7 @@ class SalesController extends Notifier<SalesState> {
         unit: response['SaleUnit'] as String,
         basePrice: (response['SalePrice'] as num).toInt(),
         isWeighted: response['IsWeighted'] as bool? ?? false,
-        vatRate: (response['VATRate'] as num?)?.toInt() ?? 12,
+        vatRate: MoneyConfig.effectiveVatRate,
       );
       addToCart(item);
     } on ApiException catch (e) {
@@ -571,7 +580,7 @@ class SalesController extends Notifier<SalesState> {
           lines: lines,
           subtotalTiyin: state.subtotal,
           discountTiyin: state.discountTiyin,
-          totalTiyin: state.total,
+          totalTiyin: state.payable,
           vatAmountTiyin: state.vatAmount,
           cashAmountTiyin: cashAmount,
           cardAmountTiyin: cardAmount,

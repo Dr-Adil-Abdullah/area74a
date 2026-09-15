@@ -57,6 +57,7 @@ class _PharmacySettingsHomeState extends State<PharmacySettingsHome> {
     final store = PharmacySettingsStore(SettingsRepository(widget.db, tenantId: tenant));
     try {
       await store.seedIfEmpty();
+      await store.hydrateMoneyConfig();
       if (!mounted) return;
       setState(() {
         _store = store;

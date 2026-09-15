@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/money_config.dart';
 import '../../../services/api_client.dart';
 
 /// Section 05 — Debts (running customer tab, "на долг").
@@ -442,7 +443,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(suffixText: '₸'),
+          decoration: InputDecoration(suffixText: MoneyConfig.symbol),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../core/utils/money.dart';
 import '../../data/database.dart';
 import '../../data/repositories/receipt_repository.dart';
 import '../../data/repositories/shift_repository.dart';
@@ -205,23 +206,7 @@ class ZReportService {
 
   // --- Small formatting helpers ------------------------------------------
 
-  static String _fmtTiyin(int tiyin) {
-    final sign = tiyin < 0 ? '−' : '';
-    final abs = tiyin.abs();
-    final tenge = abs ~/ 100;
-    final remainder = abs % 100;
-    return '$sign${_withSpaces(tenge)},${remainder.toString().padLeft(2, '0')} ₸';
-  }
-
-  static String _withSpaces(int n) {
-    final s = n.toString();
-    final b = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
-      b.write(s[i]);
-    }
-    return b.toString();
-  }
+  static String _fmtTiyin(int tiyin) => Money.format(tiyin);
 
   static String _fmtDateTime(DateTime dt) =>
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '

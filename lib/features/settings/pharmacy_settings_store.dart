@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
+import '../../core/utils/money_config.dart';
 import '../../data/repositories/settings_repository.dart';
 import 'pharmacy_setting_keys.dart';
 import 'setting_list_item.dart';
@@ -67,6 +68,7 @@ class PharmacySettingsStore {
     await set(PharmacySettingKeys.currencySymbol, symbol);
     await set(PharmacySettingKeys.currencySubunit, subunit);
     await set(PharmacySettingKeys.currencyDecimals, decimals);
+    await hydrateMoneyConfig();
   }
 
   Future<Map<String, String>> tax() async {
@@ -92,6 +94,7 @@ class PharmacySettingsStore {
     await set(PharmacySettingKeys.taxName, name.trim());
     await set(PharmacySettingKeys.taxRateBp, '$rateBp');
     await set(PharmacySettingKeys.taxType, type);
+    await hydrateMoneyConfig();
   }
 
   Future<String> discountBasis() => getOr(
@@ -99,8 +102,29 @@ class PharmacySettingsStore {
         PharmacySettingDefaults.discountBasis,
       );
 
-  Future<void> saveDiscountBasis(String basis) =>
-      set(PharmacySettingKeys.discountBasis, basis);
+  Future<void> saveDiscountBasis(String basis) async {
+    await set(PharmacySettingKeys.discountBasis, basis);
+    await hydrateMoneyConfig();
+  }
+
+  /// Push saved currency/tax into [MoneyConfig] so POS and receipts follow Settings.
+  Future<void> hydrateMoneyConfig() async {
+    final c = await currency();
+    final t = await tax();
+    final d = await discountBasis();
+    final bp = int.tryParse(t['rate_bp'] ?? '') ?? 1700;
+    MoneyConfig.apply(
+      symbol: c['symbol'],
+      code: c['code'],
+      subunit: int.tryParse(c['subunit'] ?? '') ?? 100,
+      decimals: int.tryParse(c['decimals'] ?? '') ?? 2,
+      taxEnabled: t['enabled'] == 'true',
+      taxName: t['name'],
+      taxRatePercent: (bp / 100).round(),
+      taxType: t['type'],
+      discountBasis: d,
+    );
+  }
 
   Future<List<SettingListItem>> list(String key) async {
     final raw = await _repo.get(key);

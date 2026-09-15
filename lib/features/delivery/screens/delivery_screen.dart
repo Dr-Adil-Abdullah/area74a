@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/money_config.dart';
 import '../../../services/api_client.dart';
 
 class DeliveryScreen extends StatefulWidget {
@@ -211,7 +212,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             const SizedBox(height: 12),
             TextField(controller: barcodeC, decoration: InputDecoration(labelText: l.productsFieldBarcode), keyboardType: TextInputType.number),
             const SizedBox(height: 12),
-            TextField(controller: priceC, decoration: InputDecoration(labelText: l.productsPurchasePrice, suffixText: '₸'), keyboardType: TextInputType.number),
+            TextField(controller: priceC, decoration: InputDecoration(labelText: l.productsPurchasePrice, suffixText: MoneyConfig.symbol), keyboardType: TextInputType.number),
             const SizedBox(height: 12),
             SwitchListTile(
               title: Text(l.productsWeighted, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),

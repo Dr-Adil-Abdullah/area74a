@@ -1,4 +1,5 @@
 import '../../../core/utils/money.dart';
+import '../../../core/utils/money_config.dart';
 
 /// Позиция в текущем чеке (корзине) — immutable
 class CartItem {
@@ -74,10 +75,14 @@ class CartItem {
         discountTiyin: discount,
       );
 
-  /// Сумма НДС «изнутри». Делегируется в [Money.calculateVat],
-  /// которое выполняет truncating integer division — байт-в-байт
-  /// совпадает с .NET `Calculator.VatFromInside`.
-  int get vatAmount => Money.calculateVat(total, vatRate);
+  /// Tax on this line. Inclusive = extracted from the price (legacy path).
+  /// Exclusive = added on top when Settings tax type is exclusive.
+  int get vatAmount {
+    if (MoneyConfig.taxType == 'exclusive') {
+      return Money.calculateVatExclusive(total, vatRate);
+    }
+    return Money.calculateVat(total, vatRate);
+  }
 
   /// Цена за единицу для отображения
   int get displayPrice => basePrice;

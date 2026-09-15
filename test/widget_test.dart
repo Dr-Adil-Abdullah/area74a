@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_system/core/utils/money.dart';
+import 'package:pos_system/core/utils/money_config.dart';
 import 'package:pos_system/features/sales/models/cart_item.dart';
 
 // =============================================================================
@@ -7,38 +8,40 @@ import 'package:pos_system/features/sales/models/cart_item.dart';
 // =============================================================================
 
 void main() {
+  setUp(MoneyConfig.resetToDefaults);
+
   group('Money.format', () {
     test('formats whole tenge', () {
-      expect(Money.format(144000), '1 440 ₸');
-      expect(Money.format(100), '1 ₸');
-      expect(Money.format(0), '0 ₸');
-      expect(Money.format(10000000), '100 000 ₸');
+      expect(Money.format(144000), 'Rs. 1,440/-');
+      expect(Money.format(100), 'Rs. 1/-');
+      expect(Money.format(0), 'Rs. 0/-');
+      expect(Money.format(10000000), 'Rs. 100,000/-');
     });
 
     test('formats with tiyin remainder', () {
-      expect(Money.format(150), '1,50 ₸');
-      expect(Money.format(99), '0,99 ₸');
-      expect(Money.format(1), '0,01 ₸');
-      expect(Money.format(10), '0,10 ₸');
+      expect(Money.format(150), 'Rs. 1.50');
+      expect(Money.format(99), 'Rs. 0.99');
+      expect(Money.format(1), 'Rs. 0.01');
+      expect(Money.format(10), 'Rs. 0.10');
     });
 
     test('formats negative values', () {
-      expect(Money.format(-144000), '-1 440 ₸');
-      expect(Money.format(-150), '-1,50 ₸');
-      expect(Money.format(-1), '-0,01 ₸');
+      expect(Money.format(-144000), '-Rs. 1,440/-');
+      expect(Money.format(-150), '-Rs. 1.50');
+      expect(Money.format(-1), '-Rs. 0.01');
     });
 
     test('formats large numbers with spaces', () {
-      expect(Money.format(100000000), '1 000 000 ₸');
-      expect(Money.format(999999900), '9 999 999 ₸');
+      expect(Money.format(100000000), 'Rs. 1,000,000/-');
+      expect(Money.format(999999900), 'Rs. 9,999,999/-');
     });
   });
 
   group('Money.formatTenge', () {
     test('drops tiyin', () {
-      expect(Money.formatTenge(144000), '1 440 ₸');
-      expect(Money.formatTenge(150), '1 ₸');
-      expect(Money.formatTenge(99), '0 ₸');
+      expect(Money.formatTenge(144000), 'Rs. 1,440/-');
+      expect(Money.formatTenge(150), 'Rs. 2/-');
+      expect(Money.formatTenge(99), 'Rs. 1/-');
     });
   });
 

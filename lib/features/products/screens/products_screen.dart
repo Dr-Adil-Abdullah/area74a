@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/money_config.dart';
 import '../../../services/api_client.dart';
 import '../../../services/products/product_catalog_service.dart';
 
@@ -416,13 +417,13 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
               Row(children: [
                 Expanded(child: TextField(
                   controller: purchasePriceC,
-                  decoration: InputDecoration(labelText: l.productsPurchasePrice, suffixText: '₸'),
+                  decoration: InputDecoration(labelText: l.productsPurchasePrice, suffixText: MoneyConfig.symbol),
                   keyboardType: TextInputType.number,
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: TextField(
                   controller: salePriceC,
-                  decoration: InputDecoration(labelText: l.productsSalePrice, suffixText: '₸'),
+                  decoration: InputDecoration(labelText: l.productsSalePrice, suffixText: MoneyConfig.symbol),
                   keyboardType: TextInputType.number,
                 )),
               ]),
@@ -608,7 +609,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
               const SizedBox(height: 14),
               TextField(
                 controller: priceC,
-                decoration: InputDecoration(labelText: l.productsFieldPrice, suffixText: '₸'),
+                decoration: InputDecoration(labelText: l.productsFieldPrice, suffixText: MoneyConfig.symbol),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 14),
@@ -733,7 +734,7 @@ class _ProductRow extends StatelessWidget {
   final int index;
   final bool isLast;
   final VoidCallback onDelete;
-  final VoidCallback onPrintLabel;
+  final VoidCallback 
   final VoidCallback onEdit;
 
   const _ProductRow({required this.product, required this.index, required this.isLast, required this.onDelete, required this.onPrintLabel, required this.onEdit});
@@ -749,7 +750,7 @@ class _ProductRow extends StatelessWidget {
     final name = product['Name'] as String? ?? '';
     final barcode = product['BarcodeGTIN'] as String? ?? '';
     final ntin = product['NTIN'] as String? ?? '';
-    final vatRate = product['VATRate'] as num? ?? 12;
+    final vatRate = product['VATRate'] as num? ?? MoneyConfig.effectiveVatRate;
     final stockQty = (product['StockQty'] as num?)?.toDouble() ?? -1;
     final isEven = index.isEven;
 

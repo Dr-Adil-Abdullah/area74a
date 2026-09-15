@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/money_config.dart';
+
 /// Экранная цифровая клавиатура для POS-терминалов без физической клавиатуры.
 class NumPad extends StatelessWidget {
   final TextEditingController controller;
@@ -114,14 +116,14 @@ class NumPad extends StatelessWidget {
   }
 }
 
-/// Кнопки быстрого ввода сумм (номиналы купюр KZT)
+/// Quick cash buttons — PKR notes by default (owner can still pass amounts).
 class QuickAmountButtons extends StatelessWidget {
   final List<int> amounts;
   final ValueChanged<int> onSelect;
 
   const QuickAmountButtons({
     super.key,
-    this.amounts = const [500, 1000, 2000, 5000, 10000, 20000],
+    this.amounts = const [100, 500, 1000, 5000],
     required this.onSelect,
   });
 
@@ -132,7 +134,6 @@ class QuickAmountButtons extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: amounts.map((amount) {
-        final label = amount >= 1000 ? '${amount ~/ 1000}K' : '$amount';
         return SizedBox(
           height: 44,
           child: OutlinedButton(
@@ -143,7 +144,7 @@ class QuickAmountButtons extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(horizontal: 18),
             ),
-            child: Text('$label ₸', style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14)),
+            child: Text('$amount ${MoneyConfig.symbol}', style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14)),
           ),
         );
       }).toList(),
