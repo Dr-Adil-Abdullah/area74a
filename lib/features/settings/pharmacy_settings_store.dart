@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 
 import '../../core/utils/money_config.dart';
+import '../../core/utils/price_book.dart';
 import '../../data/repositories/settings_repository.dart';
 import 'pharmacy_setting_keys.dart';
 import 'setting_list_item.dart';
@@ -123,6 +124,63 @@ class PharmacySettingsStore {
       taxRatePercent: (bp / 100).round(),
       taxType: t['type'],
       discountBasis: d,
+    );
+    await hydratePriceBook();
+  }
+
+  Future<Map<String, Map<String, int>>> productPrices() async {
+    final raw = await _repo.get(PharmacySettingKeys.productPrices);
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return {};
+      final out = <String, Map<String, int>>{};
+      decoded.forEach((k, v) {
+        if (v is! Map) return;
+        final inner = <String, int>{};
+        v.forEach((tk, tv) {
+          final n = tv is num ? tv.toInt() : int.tryParse('$tv') ?? 0;
+          if (n > 0) inner['$tk'] = n;
+        });
+        if (inner.isNotEmpty) out['$k'] = inner;
+      });
+      return out;
+    } on Object {
+      return {};
+    }
+  }
+
+  Future<void> saveProductExtraPrices(
+    String productId,
+    Map<String, int> extras,
+  ) async {
+    final all = await productPrices();
+    final cleaned = <String, int>{
+      for (final e in extras.entries)
+        if (e.value > 0) e.key: e.value,
+    };
+    if (cleaned.isEmpty) {
+      all.remove(productId);
+    } else {
+      all[productId] = cleaned;
+    }
+    await set(PharmacySettingKeys.productPrices, jsonEncode(all));
+    await hydratePriceBook();
+  }
+
+  Future<void> hydratePriceBook() async {
+    final tiers = await list(PharmacySettingKeys.priceTiers);
+    final contacts = await list(PharmacySettingKeys.contactTypes);
+    PriceBook.apply(
+      priceTiers: [
+        for (final t in tiers)
+          if (t.isActive) t.name,
+      ],
+      contactTypes: [
+        for (final t in contacts)
+          if (t.isActive) t.name,
+      ],
+      extra: await productPrices(),
     );
   }
 

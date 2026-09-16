@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/money_config.dart';
+import '../../../core/utils/price_book.dart';
 import '../../../services/api_client.dart';
 import '../../../services/sales/sales_service.dart';
 import '../models/cart_item.dart';
@@ -131,6 +132,9 @@ class SalesState {
   final List<Map<String, dynamic>> categories;
   final String? selectedCategoryId; // null = all
 
+  /// POS customer type chip (Customer / VIP / Doctor). Maps to a price tier.
+  final String customerType;
+
   const SalesState({
     this.items = const [],
     this.discountTiyin = 0,
@@ -147,6 +151,7 @@ class SalesState {
     this.undoIndex,
     this.categories = const [],
     this.selectedCategoryId,
+    this.customerType = 'Customer',
   });
 
   /// Подитого до скидки (тиын)
@@ -195,6 +200,7 @@ class SalesState {
     List<Map<String, dynamic>>? categories,
     String? selectedCategoryId,
     bool clearCategoryFilter = false,
+    String? customerType,
   }) {
     return SalesState(
       items: items ?? this.items,
@@ -212,6 +218,7 @@ class SalesState {
       undoIndex: clearUndo ? null : (undoIndex ?? this.undoIndex),
       categories: categories ?? this.categories,
       selectedCategoryId: clearCategoryFilter ? null : (selectedCategoryId ?? this.selectedCategoryId),
+      customerType: customerType ?? this.customerType,
     );
   }
 
@@ -239,7 +246,8 @@ class SalesState {
         undoItem == other.undoItem &&
         undoIndex == other.undoIndex &&
         listEquals(categories, other.categories) &&
-        selectedCategoryId == other.selectedCategoryId;
+        selectedCategoryId == other.selectedCategoryId &&
+        customerType == other.customerType;
   }
 
   @override
@@ -259,6 +267,7 @@ class SalesState {
         undoIndex,
         Object.hashAll(categories),
         selectedCategoryId,
+        customerType,
       ]);
 }
 
@@ -329,7 +338,11 @@ class SalesController extends Notifier<SalesState> {
       parkedAt: DateTime.now(),
     );
     final parkedCarts = List<ParkedCart>.from(state.parkedCarts)..add(parked);
-    state = SalesState(parkedCarts: parkedCarts, categories: state.categories);
+    state = SalesState(
+      parkedCarts: parkedCarts,
+      categories: state.categories,
+      customerType: state.customerType,
+    );
   }
 
   void resumeParkedCart(int index) {
@@ -389,7 +402,16 @@ class SalesController extends Notifier<SalesState> {
   }
 
   void clearCart() {
-    state = SalesState(parkedCarts: state.parkedCarts, categories: state.categories);
+    state = SalesState(
+      parkedCarts: state.parkedCarts,
+      categories: state.categories,
+      customerType: state.customerType,
+    );
+  }
+
+  void setCustomerType(String name) {
+    MoneyConfig.apply(priceTier: PriceBook.tierForContactType(name));
+    state = state.copyWith(customerType: name);
   }
 
   void clearNktResults() {
@@ -634,6 +656,7 @@ class SalesController extends Notifier<SalesState> {
         saleSuccess: 'Оплата принята!',
         parkedCarts: state.parkedCarts,
         categories: state.categories,
+        customerType: state.customerType,
       );
     } on ApiException catch (e) {
       assert(() {

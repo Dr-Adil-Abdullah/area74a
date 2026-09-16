@@ -30,6 +30,9 @@ class PharmacySettingKeys {
   static const expenseHeads = 'list.expense_heads';
   static const productCategories = 'list.product_categories';
   static const customFields = 'list.custom_fields';
+
+  /// {productId: {tierName: paisa}} — extra prices beyond Retail.
+  static const productPrices = 'map.product_prices';
 }
 
 class PharmacySettingDefaults {

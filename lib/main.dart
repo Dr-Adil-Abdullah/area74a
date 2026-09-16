@@ -466,6 +466,13 @@ class _PosAppState extends State<PosApp> {
         // screens (e.g. PaymentScreen) can gate their own rendering
         // without each upstream widget having to thread the flag down.
         Provider<FeatureFlags>.value(value: _flags),
+        Provider<PharmacySettingsStore?>.value(
+          value: _activeTenantId == null
+              ? null
+              : PharmacySettingsStore(
+                  SettingsRepository(_db, tenantId: _activeTenantId!),
+                ),
+        ),
       ],
       child: ProviderScope(
         // Root (and only) Riverpod scope — see the runApp comment in main().

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/money_config.dart';
+import '../../../core/utils/price_book.dart';
 import '../../../services/api_client.dart';
 import '../../../services/products/product_catalog_service.dart';
+import '../../settings/pharmacy_settings_store.dart';
 
 class ProductsScreen extends StatefulWidget {
   final ApiClient api;
@@ -390,8 +393,54 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
     }
   }
 
+  Map<String, TextEditingController> _extraPriceControllers(String? productId) {
+    final existing = productId == null ? const <String, int>{} : (PriceBook.extra[productId] ?? {});
+    return {
+      for (final t in PriceBook.extraTiers)
+        t: TextEditingController(
+          text: existing[t] == null || existing[t] == 0
+              ? ''
+              : Money.tiyinToTenge(existing[t]!).toStringAsFixed(
+                  Money.tiyinToTenge(existing[t]!) == Money.tiyinToTenge(existing[t]!).roundToDouble()
+                      ? 0
+                      : 2,
+                ),
+        ),
+    };
+  }
+
+  Map<String, int> _readExtraPrices(Map<String, TextEditingController> ctrls) {
+    return {
+      for (final e in ctrls.entries)
+        e.key: Money.tengeToTiyin(double.tryParse(e.value.text.trim()) ?? 0),
+    };
+  }
+
+  List<Widget> _extraPriceFields(Map<String, TextEditingController> ctrls) {
+    if (ctrls.isEmpty) return const [];
+    return [
+      const SizedBox(height: 14),
+      const Text(
+        'Extra prices — leave empty to use Retail',
+        style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+      for (final t in ctrls.keys) ...[
+        const SizedBox(height: 10),
+        TextField(
+          controller: ctrls[t],
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: t,
+            suffixText: MoneyConfig.symbol,
+          ),
+        ),
+      ],
+    ];
+  }
+
   void _showEditDialog(BuildContext context, Map<String, dynamic> product) {
     final l = AppLocalizations.of(context)!;
+    final store = context.read<PharmacySettingsStore?>();
     final nameC = TextEditingController(text: product['Name'] as String? ?? '');
     final salePriceC = TextEditingController(
       text: Money.tiyinToTenge((product['SalePrice'] as num?)?.toInt() ?? 0).toStringAsFixed(0),
@@ -400,6 +449,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
       text: Money.tiyinToTenge((product['PurchasePrice'] as num?)?.toInt() ?? 0).toStringAsFixed(0),
     );
     final barcodeC = TextEditingController(text: product['BarcodeGTIN'] as String? ?? '');
+    final extraCtrls = _extraPriceControllers(product['ID'] as String?);
     bool isWeighted = product['IsWeighted'] as bool? ?? false;
     bool submitting = false;
 
@@ -427,6 +477,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                   keyboardType: TextInputType.number,
                 )),
               ]),
+              ..._extraPriceFields(extraCtrls),
               const SizedBox(height: 14),
               // Margin display
               Builder(builder: (_) {
@@ -480,6 +531,10 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                           'is_weighted': isWeighted,
                           'sale_unit': isWeighted ? 'kg' : 'pcs',
                         });
+                        await store?.saveProductExtraPrices(
+                          product['ID'] as String,
+                          _readExtraPrices(extraCtrls),
+                        );
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (mounted) await _load();
                       } on Exception catch (e) {
@@ -505,15 +560,20 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
       salePriceC.dispose();
       purchasePriceC.dispose();
       barcodeC.dispose();
+      for (final c in extraCtrls.values) {
+        c.dispose();
+      }
     });
   }
 
   void _showAddDialog(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final pos = PosColors.of(context);
+    final store = context.read<PharmacySettingsStore?>();
     final nameC = TextEditingController();
     final priceC = TextEditingController();
     final barcodeC = TextEditingController();
+    final extraCtrls = _extraPriceControllers(null);
     String ntin = '', nameKZ = '';
     bool isWeighted = false, nktLoading = false;
     String? nktStatus;
@@ -612,6 +672,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                 decoration: InputDecoration(labelText: l.productsFieldPrice, suffixText: MoneyConfig.symbol),
                 keyboardType: TextInputType.number,
               ),
+              ..._extraPriceFields(extraCtrls),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -636,9 +697,10 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
             ElevatedButton(
               onPressed: () async {
-                final price = ((double.tryParse(priceC.text) ?? 0) * 100).round();
+                final price = Money.tengeToTiyin(double.tryParse(priceC.text) ?? 0);
+                final newId = 'p-${DateTime.now().millisecondsSinceEpoch}';
                 await widget.api.createProduct({
-                  'id': 'p-${DateTime.now().millisecondsSinceEpoch}',
+                  'id': newId,
                   'name': nameC.text,
                   'name_kz': nameKZ,
                   'barcode_gtin': barcodeC.text,
@@ -660,6 +722,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                   // the actual creator from the JWT regardless.
                   'device_id': 'local-001',
                 });
+                await store?.saveProductExtraPrices(newId, _readExtraPrices(extraCtrls));
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) await _load();
               },
@@ -674,6 +737,9 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
       nameC.dispose();
       priceC.dispose();
       barcodeC.dispose();
+      for (final c in extraCtrls.values) {
+        c.dispose();
+      }
     });
   }
 }
@@ -734,7 +800,7 @@ class _ProductRow extends StatelessWidget {
   final int index;
   final bool isLast;
   final VoidCallback onDelete;
-  final VoidCallback 
+  final VoidCallback onPrintLabel;
   final VoidCallback onEdit;
 
   const _ProductRow({required this.product, required this.index, required this.isLast, required this.onDelete, required this.onPrintLabel, required this.onEdit});

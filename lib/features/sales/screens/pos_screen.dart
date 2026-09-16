@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/money_config.dart';
+import '../../../core/utils/price_book.dart';
 import '../../../services/api_client.dart';
 import '../../../services/sales/sales_service.dart';
 import '../controllers/sales_controller.dart';
@@ -116,6 +117,31 @@ class _TabletLayout extends StatelessWidget {
 // Left pane — search / last-added / cart / totals
 // ════════════════════════════════════════════════════════════════════════════
 
+class _CustomerTypeChips extends ConsumerWidget {
+  const _CustomerTypeChips({required this.selected});
+  final String selected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final types = PriceBook.posContactTypes;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(children: [
+        for (int i = 0; i < types.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          ChoiceChip(
+            label: Text(types[i], style: Hifi.ui(size: 12, weight: FontWeight.w600)),
+            selected: selected == types[i],
+            visualDensity: VisualDensity.compact,
+            onSelected: (_) =>
+                ref.read(salesControllerProvider.notifier).setCustomerType(types[i]),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
 class _CartPane extends ConsumerStatefulWidget {
   final String? shiftId;
   final String? cashierId;
@@ -174,6 +200,8 @@ class _CartPaneState extends ConsumerState<_CartPane> {
           onChanged: _onChanged,
           trailing: Text('⏎ Enter', style: Hifi.mono(size: 10, color: const Color(0xFFA59C8B))),
         ),
+        const SizedBox(height: 8),
+        _CustomerTypeChips(selected: state.customerType),
         const SizedBox(height: 8),
         LastAddedStrip(
           iconData: lastItem == null
