@@ -5,8 +5,11 @@ Fork of [icybeard/pos-register](https://github.com/icybeard/pos-register) (Apach
 
 **Start here:** [READ_ME_FIRST.md](READ_ME_FIRST.md)
 
+**Test on your PC (beginner):** [HOW_TO_TEST.md](HOW_TO_TEST.md) — GitHub Desktop + one command.
+
 | Doc | Purpose |
 |---|---|
+| [HOW_TO_TEST.md](HOW_TO_TEST.md) | GitHub Desktop, `flutter test`, click-checklists |
 | [AREA_72A_C.md](AREA_72A_C.md) | Owner requirements only |
 | [PROPOSED_CHANGES.md](PROPOSED_CHANGES.md) | Schemas — **approved 15 Sep 2026** |
 | [AI_UNDERSTANDING.md](AI_UNDERSTANDING.md) | What the base really is |
