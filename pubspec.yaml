@@ -1,0 +1,229 @@
+name: pos_system
+description: "Pharmacy POS — Pakistan medical store, offline-first. Fork of icybeard/pos-register."
+publish_to: 'none'
+version: 0.2.2+6
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # Pinned to caret-^0.20.2: matches the resolution that flutter_localizations
+  # currently expects, prevents `flutter pub upgrade` from silently bumping
+  # across the next intl ICU-syntax break, and keeps Russian plural rules
+  # stable across builds. Bump deliberately when flutter_localizations does.
+  intl: ^0.20.2
+  cupertino_icons: ^1.0.8
+
+  # State management.
+  # Riverpod replaces flutter_bloc + equatable. The migration kept the sealed
+  # event/state classes intact — Auth and Sales controllers extend Riverpod's
+  # Notifier<State> with one method per former event so call-site behavior
+  # is unchanged (PIN auto-submit, session-restore handshake, payment-side
+  # effects). Equatable is gone; state classes get hand-rolled `==` /
+  # `hashCode` where rebuild stability matters.
+  flutter_riverpod: ^2.5.1
+  # Repository / service DI for context.read<X>() at widget-tree leaves
+  # (SalesGuards, ApiClient, FeatureFlags, SyncStatusService). Used to ride
+  # in via flutter_bloc's re-export of RepositoryProvider; pinned directly
+  # now that flutter_bloc is gone. Migration to authProvider-style Riverpod
+  # providers across every leaf widget would also work but is out of scope
+  # for the mechanical 0b shim.
+  provider: ^6.1.2
+
+  # HTTP — kept (http) for legacy ApiClient + dio for the new client with interceptors.
+  http: ^1.3.0
+  dio: ^5.7.0
+
+  # Local storage (drift) — central piece of the offline-first redesign (T1.1+)
+  # drift stays on 2.31 because drift_dev >=2.32 requires analyzer 10+ (Flutter
+  # SDK currently ships analyzer 8). Same reason keeps drift_flutter on 0.2.x
+  # and sqlite3 on 2.x. The macOS Xcode 26 fix comes from sqlcipher_flutter_libs
+  # ^0.7.0 + a dependency_override pinning sqlite3_flutter_libs to the
+  # +eol release that renames its ObjC class out of the way.
+  drift: ^2.31.0
+  drift_flutter: ^0.2.8
+  sqlite3: ^2.4.6
+  # SQLCipher-compatible native libs. Drop-in replacement for
+  # sqlite3_flutter_libs; drift picks up the underlying sqlite3 symbols
+  # transparently. Combined with a per-device key held in secure storage
+  # (DatabaseKeyStore), this encrypts pos.drift.sqlite at rest so an `adb
+  # backup` / rooted-device extraction can't read bcrypt PIN hashes or
+  # sync_outbox payloads.
+  #
+  # 0.7.0+eol is the last release before simolus3 deprecated this package;
+  # it also fixes the Sqlite3FlutterLibsPlugin duplicate-class collision
+  # with sqlite3_flutter_libs on Xcode 26 (previous versions defined the
+  # same ObjC class name, which Xcode 26's stricter module linker rejects).
+  sqlcipher_flutter_libs: ^0.7.0
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # One-shot read-only access to the legacy Go server's pos.db during migration (T1.4)
+  sqflite: ^2.3.3
+
+  # Auth / sync infra
+  flutter_secure_storage: ^9.2.2
+  # Biometric authentication — Face ID / Touch ID on iOS + macOS,
+  # BiometricPrompt on Android. Used as a local trust boundary to unlock
+  # a previously-stored access token without re-typing the PIN.
+  local_auth: ^2.3.0
+  uuid: ^4.5.0
+  pointycastle: ^3.9.1
+  crypto: ^3.0.5
+  # Pure-Dart bcrypt (pointycastle-backed internally), verifies hashes minted
+  # by BCrypt.Net-Next on the .NET side. Locked decision #12.
+  bcrypt: ^1.1.3
+  collection: ^1.18.0
+
+  # gRPC for sync (used in P2+)
+  grpc: ^4.0.1
+  protobuf: ^3.1.0
+
+  # UI bits
+  window_manager: ^0.5.1
+
+  # Receipt + Z-report PDF
+  printing: ^5.14.0
+  pdf: ^3.11.0
+  device_info_plus: ^12.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # drift code generation — kept at 2.31 for analyzer 8.x compat with Flutter SDK
+  drift_dev: ^2.31.0
+  build_runner: ^2.4.13
+
+  # Mocking + BLoC test. bloc_test was previously declared but never
+  # imported anywhere — auth_bloc_test.dart and sales_bloc_test.dart use
+  # a hand-rolled `collectStates` helper instead. Removed to slim the
+  # dev-dep graph; re-add if a future test switches to `blocTest(...)`.
+  mocktail: ^1.0.4
+  sqflite_common_ffi: ^2.3.3  # test-only: sqflite backed by native sqlite3 (no platform channel)
+
+  # Launcher-icon generator. Run `dart run flutter_launcher_icons` to regenerate
+  # the platform-specific icons under android/, ios/, windows/, linux/, macos/
+  # from assets/brand/app_icon.png. Config block lives at the bottom of this file.
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+  # Bundled brand assets (KeregeSystem). Sourced from pos-docs/icons/.
+  assets:
+    - assets/brand/app_icon.png
+
+  # Bundled fonts. Variable TTFs (single file, all weights via the wght axis)
+  # downloaded from github.com/google/fonts. Bundling avoids the runtime
+  # network fetch + visible font flash that the `google_fonts` package causes
+  # on every cold start. Total ~1 MB; cleared from the boot path.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Variable.ttf
+
+# Tell the sqlite3 pub package's native-asset hook to compile SQLite3 Multiple
+# Ciphers (sqlite3mc) from the vendored amalgamation in third_party/sqlite3mc/
+# instead of downloading a precompiled dylib from GitHub's release CDN.
+#
+# Why: release-assets.githubusercontent.com redirects to Azure Blob Storage,
+# which is blocked by some KZ ISPs — `flutter pub get` times out, which breaks
+# Xcode's Run Script build phase. Compiling locally removes the dependency on
+# the CDN entirely. First build per platform takes ~60-90s; cached thereafter.
+#
+# Why sqlite3mc and not plain sqlite3 / SQLCipher proper:
+#   - We need SQLCipher-compatible PRAGMA key encryption (see database.dart).
+#   - sqlite3mc bundles its own AES, so iOS doesn't need Security framework,
+#     Linux doesn't need libcrypto, Windows doesn't need OpenSSL, Android
+#     doesn't need a crypto backend picker. One amalgamation, five platforms.
+#   - SQLITE3MC_USE_SQL_CIPHER=1 + CODEC_TYPE_SQLCIPHER selects the wire
+#     format that matches existing encrypted DBs created by the previous
+#     sqlcipher_flutter_libs 0.7.0+eol build path.
+#
+# See third_party/sqlite3mc/README.md for re-vendoring instructions.
+hooks:
+  user_defines:
+    sqlite3:
+      source: source
+      path: ./third_party/sqlite3mc/sqlite3mc_amalgamation.c
+      defines:
+        default_options: false  # sqlite3mc has its own curated defaults
+        defines:
+          # SQLCipher wire-format compatibility with existing encrypted DBs
+          - SQLITE3MC_USE_SQL_CIPHER=1
+          - SQLITE3MC_DEFAULT_CIPHER=CODEC_TYPE_SQLCIPHER
+          # Threading + temp storage (drift expectations)
+          - SQLITE_THREADSAFE=1
+          - SQLITE_TEMP_STORE=2
+          # Features drift / our queries use
+          - SQLITE_ENABLE_FTS5
+          - SQLITE_ENABLE_RTREE
+          - SQLITE_ENABLE_MATH_FUNCTIONS
+          - SQLITE_ENABLE_SESSION
+          - SQLITE_ENABLE_PREUPDATE_HOOK
+          - SQLITE_ENABLE_DBSTAT_VTAB
+          # Hardening / footprint
+          - SQLITE_DQS=0
+          - SQLITE_DEFAULT_MEMSTATUS=0
+          - SQLITE_MAX_EXPR_DEPTH=0
+          - SQLITE_OMIT_DEPRECATED
+          - SQLITE_OMIT_SHARED_CACHE
+          - SQLITE_OMIT_TRACE
+
+# Overrides:
+#
+# (1) drift 2.32 at runtime requires sqlite3 3.x (which is where the new
+#     native-asset hook lives). drift_dev stays at 2.31 because its
+#     analyzer 10+ dep conflicts with Flutter SDK's analyzer 8. Generated
+#     .g.dart files are forward-compatible (drift 2.32 runtime reads
+#     2.31-generated schemas fine).
+#
+# (2) sqlite3_flutter_libs / sqlcipher_flutter_libs pinned to their
+#     `+eol` shells. Xcode 26 / Swift 6 rejects the duplicate ObjC class
+#     `Sqlite3FlutterLibsPlugin` that older (non-eol) versions ship. The
+#     `+eol` versions are empty transitional shells that renamed the
+#     ObjC class out of the way. They no longer provide runtime sqlite
+#     symbols — that now comes from the hooks.user_defines block above
+#     compiling sqlite3mc locally. Keeping the pins prevents pub from
+#     resolving to older non-eol versions that would bring back the
+#     collision.
+dependency_overrides:
+  # See block comment (1): drift runtime forward to 2.32+ for sqlite3 3.x; drift_dev stays at 2.31.
+  drift: ^2.32.0
+  # Pairs with drift 2.32 — the native-asset hook lives here in sqlite3 3.x.
+  sqlite3: ^3.0.0
+  # Pairs with block comment (2): +eol shell, ObjC class renamed to satisfy Xcode 26 module linker.
+  sqlite3_flutter_libs: 0.6.0+eol
+  # Same as sqlite3_flutter_libs above — +eol shell, no runtime symbols (sqlite3mc provides them).
+  sqlcipher_flutter_libs: 0.7.0+eol
+
+# KeregeSystem brand launcher icons — pos-register (blue · tenge).
+# Source: pos-docs/icons/png/pos-register-1024.png (mirrored to assets/brand/app_icon.png).
+# Regenerate: `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  image_path: "assets/brand/app_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  # Adaptive icon — Android 8+ requires a foreground+background pair.
+  # Background = KeregeSystem cream `#f4ecdd` (the lattice halo).
+  adaptive_icon_background: "#f4ecdd"
+  adaptive_icon_foreground: "assets/brand/app_icon.png"
+  # web is not a shipping target — see CLAUDE.md (Windows, Linux, macOS, Android, iOS only).
+  windows:
+    generate: true
+    image_path: "assets/brand/app_icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/brand/app_icon.png"
