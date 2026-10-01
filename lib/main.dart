@@ -46,6 +46,10 @@ import 'services/sync/sync_status_service.dart';
 import 'services/override/manager_override_service.dart';
 import 'services/override/oversell_guard.dart';
 import 'data/repositories/cashier_repository.dart';
+import 'data/repositories/category_repository.dart';
+import 'data/repositories/product_repository.dart';
+import 'data/repositories/receipt_repository.dart';
+import 'data/repositories/shift_repository.dart';
 import 'data/repositories/stock_movement_repository.dart';
 import 'features/sales/sales_guards.dart';
 import 'features/auth/controllers/auth_controller.dart';
@@ -59,9 +63,9 @@ import 'features/users/screens/cashiers_screen.dart';
 import 'features/sales/screens/shift_screen.dart';
 import 'features/clients/screens/debts_screen.dart';
 import 'data/repositories/settings_repository.dart';
+import 'features/settings/pharmacy_setting_keys.dart';
 import 'features/settings/pharmacy_settings_store.dart';
 import 'features/settings/screens/pharmacy_settings_home.dart';
-import 'features/settings/screens/settings_screen.dart';
 import 'features/analytics/screens/analytics_screen.dart';
 import 'features/delivery/screens/delivery_screen.dart';
 import 'features/approval/screens/approval_screen.dart';
@@ -260,12 +264,9 @@ class _PosAppState extends State<PosApp> {
   late final LocaleStore _localeStore;
   late final SyncStatusService _syncStatusService;
 
-  /// Current operator-selected UI locale. Defaults to `'ru'` (Kazakhstan
-  /// retail-floor default); flipped to `'kk'` via the chrome bar locale
-  /// chip and persisted across boots by [LocaleStore]. The async load in
-  /// [initState] may transition this once if a different locale was saved
-  /// previously.
-  String _currentLocale = 'ru';
+  /// Current operator-selected UI locale. Defaults to `'en'` for Pakistan
+  /// Pharmacy POS; persisted across boots by [LocaleStore].
+  String _currentLocale = 'en';
 
   /// Memoised SalesGuards bundle. Built once in [initState] and rebuilt
   /// only when `_activeTenantId` / `_activeWorkstationId` change (via
@@ -355,7 +356,7 @@ class _PosAppState extends State<PosApp> {
   /// locale (e.g. "ҚЗ" when current is ru), so callers don't need to
   /// know which way the flip goes — they just invoke this.
   void _toggleLocale() {
-    final next = _currentLocale == 'ru' ? 'kk' : 'ru';
+    final next = _currentLocale == 'en' ? 'ru' : 'en';
     setState(() => _currentLocale = next);
     unawaited(_localeStore.save(next));
   }
@@ -369,21 +370,30 @@ class _PosAppState extends State<PosApp> {
       // over cloud tokens so SalesService is not DisabledSalesService.
       final standalone = await _standaloneStore.load();
       if (standalone != null && mounted) {
-        setState(() {
-          _activeTenantId = standalone.tenantId;
-          _activeWorkstationId = standalone.storeId;
-          _salesGuards = _buildSalesGuards();
-        });
-        await _hydrateMoneyConfig(standalone.tenantId);
+        if (_activeTenantId != standalone.tenantId ||
+            _activeWorkstationId != standalone.storeId) {
+          setState(() {
+            _activeTenantId = standalone.tenantId;
+            _activeWorkstationId = standalone.storeId;
+            _salesGuards = _buildSalesGuards();
+          });
+        }
+        await _hydrateMoneyConfig(
+          standalone.tenantId,
+          storeName: standalone.storeName,
+        );
         return;
       }
       final tokens = await _tokenStore.load();
       if (tokens != null && mounted) {
-        setState(() {
-          _activeTenantId = tokens.tenantId;
-          _activeWorkstationId = tokens.workstationId;
-          _salesGuards = _buildSalesGuards();
-        });
+        if (_activeTenantId != tokens.tenantId ||
+            _activeWorkstationId != tokens.workstationId) {
+          setState(() {
+            _activeTenantId = tokens.tenantId;
+            _activeWorkstationId = tokens.workstationId;
+            _salesGuards = _buildSalesGuards();
+          });
+        }
         await _hydrateMoneyConfig(tokens.tenantId);
       }
     } on Object {
@@ -391,11 +401,20 @@ class _PosAppState extends State<PosApp> {
     }
   }
 
-  Future<void> _hydrateMoneyConfig(String? tenantId) async {
+  Future<void> _hydrateMoneyConfig(String? tenantId, {String? storeName}) async {
     if (tenantId == null || tenantId.isEmpty) return;
     try {
-      await PharmacySettingsStore(SettingsRepository(_db, tenantId: tenantId))
-          .hydrateMoneyConfig();
+      final store = PharmacySettingsStore(
+        SettingsRepository(_db, tenantId: tenantId),
+      );
+      await store.seedIfEmpty();
+      if (storeName != null && storeName.trim().isNotEmpty) {
+        final existing = await store.getString(PharmacySettingKeys.storeName, '');
+        if (existing.isEmpty || existing == 'Medical Store') {
+          await store.setString(PharmacySettingKeys.storeName, storeName.trim());
+        }
+      }
+      await store.hydrateMoneyConfig();
     } on Object {
       // Keep PKR / tax-off defaults.
     }
@@ -439,51 +458,58 @@ class _PosAppState extends State<PosApp> {
     // disabled stub throws if completeSale fires — the cart UI shouldn't
     // reach Pay in that state, and the owner-web-admin case never rings
     // up a sale at all.
-    final SalesService salesService =
-        (_activeTenantId == null || _activeWorkstationId == null)
-            ? const DisabledSalesService()
-            : createSalesService(
-                db: _db,
-                tenantId: _activeTenantId!,
-                deviceId: _activeWorkstationId!,
-                workstationId: _activeWorkstationId!,
-              );
+    final tenantId = _activeTenantId;
+    final wsId = _activeWorkstationId;
+    final SalesService salesService = (tenantId == null || wsId == null)
+        ? const DisabledSalesService()
+        : createSalesService(
+            db: _db,
+            tenantId: tenantId,
+            deviceId: wsId,
+            workstationId: wsId,
+          );
+    final ProductCatalogService? catalogService = tenantId == null
+        ? null
+        : createProductCatalogService(
+            flags: _flags,
+            db: _db,
+            tenantId: tenantId,
+            api: _apiClient,
+          );
+    final CategoryRepository? categoryRepository =
+        tenantId == null ? null : CategoryRepository(_db);
+    final ProductRepository? productRepository =
+        tenantId == null ? null : ProductRepository(_db, tenantId: tenantId);
+    final ShiftRepository? shiftRepository =
+        tenantId == null ? null : ShiftRepository(_db, tenantId: tenantId);
+    final ReceiptRepository? receiptRepository =
+        (tenantId == null || wsId == null)
+            ? null
+            : ReceiptRepository(_db, tenantId: tenantId, deviceId: wsId);
+    final CashierRepository? cashierRepository =
+        tenantId == null ? null : CashierRepository(_db, tenantId: tenantId);
 
     return MultiProvider(
       providers: [
         Provider<ApiClient>.value(value: _apiClient),
-        // Real bundle when drift-sales + register activation are both in
-        // place; disabled-default otherwise. The instance lives in state
-        // (built once at boot, refreshed when tenant id loads from secure
-        // storage) — calling _buildSalesGuards() on every build() would
-        // leak the underlying repos on each frame.
         Provider<SalesGuards>.value(value: _salesGuards),
-        // Sync status aggregator — read by SyncStatusChip in the top
-        // chrome of every screen to render the combined online/pull/
-        // outbox indicator. Stateless service, safe to share app-wide.
         Provider<SyncStatusService>.value(value: _syncStatusService),
-        // Compile-time feature flag profile. Exposed via provider so leaf
-        // screens (e.g. PaymentScreen) can gate their own rendering
-        // without each upstream widget having to thread the flag down.
         Provider<FeatureFlags>.value(value: _flags),
         Provider<PharmacySettingsStore?>.value(
-          value: _activeTenantId == null
+          value: tenantId == null
               ? null
               : PharmacySettingsStore(
-                  SettingsRepository(_db, tenantId: _activeTenantId!),
+                  SettingsRepository(_db, tenantId: tenantId),
                 ),
         ),
+        Provider<ProductRepository?>.value(value: productRepository),
+        Provider<ShiftRepository?>.value(value: shiftRepository),
+        Provider<ReceiptRepository?>.value(value: receiptRepository),
+        Provider<CashierRepository?>.value(value: cashierRepository),
+        Provider<CategoryRepository?>.value(value: categoryRepository),
       ],
       child: ProviderScope(
-        // Root (and only) Riverpod scope — see the runApp comment in main().
-        // The ProviderObserver replaces the prior Bloc.observer hook: catches
-        // errors thrown inside any Notifier callback and forwards them to
-        // developer.log so they survive a release build.
         observers: const [_AppProviderObserver()],
-        // Override Riverpod's construction-time seams so the AuthController /
-        // SalesController build() picks up the boot-resolved storage + api
-        // client. Drives the dependency graph from main.dart, mirroring the
-        // prior BlocProvider create:() lambdas.
         overrides: [
           // Auth controller deps
           authApiClientProvider.overrideWithValue(_apiClient),
@@ -497,6 +523,9 @@ class _PosAppState extends State<PosApp> {
           // Sales controller deps
           salesApiClientProvider.overrideWithValue(_apiClient),
           salesServiceProvider.overrideWithValue(salesService),
+          salesCatalogServiceProvider.overrideWithValue(catalogService),
+          salesCategoryRepositoryProvider.overrideWithValue(categoryRepository),
+          salesTenantIdProvider.overrideWithValue(tenantId),
         ],
         child: _PosBootHydrator(
           child: MaterialApp(
@@ -545,6 +574,14 @@ class _PosAppState extends State<PosApp> {
           //   AuthInitial (legacy)  → OwnerLoginScreen as a fallback
           home: Consumer(
             builder: (context, ref, _) {
+              ref.listen<AuthState>(authControllerProvider, (prev, next) {
+                if ((next is AuthInitial ||
+                        next is AuthAuthenticated ||
+                        next is RegisterActivated) &&
+                    _activeTenantId == null) {
+                  unawaited(_loadTenantId());
+                }
+              });
               final state = ref.watch(authControllerProvider);
               if (state is AuthLoading) {
                 return const Scaffold(
@@ -556,34 +593,17 @@ class _PosAppState extends State<PosApp> {
                   db: _db,
                   flags: _flags,
                   tenantId: _activeTenantId,
+                  workstationId: _activeWorkstationId,
                   cashierId: state.cashierId,
                   cashierName: state.cashierName,
                   role: state.role,
-                  // "Выйти из системы" — clear the session and route to the
-                  // admin email+password screen. User's original wording:
-                  // "when they press выйти из системы we show login with
-                  // email password".
                   onLogout: () {
                     ref.read(authControllerProvider.notifier).logout();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const OwnerLoginScreen(),
-                      ),
-                    );
+                    Navigator.of(context).popUntil((r) => r.isFirst);
                   },
-                  // "Сменить кассира" — clear the session and route
-                  // straight to PinScreen, which shows the cashier grid
-                  // (with admin tile) by default. Workstation + store
-                  // bindings stay; next cashier just taps their face
-                  // and enters PIN. Replaces the legacy CashierLoginScreen
-                  // text-form.
                   onSwitchCashier: () {
                     ref.read(authControllerProvider.notifier).logout();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const PinScreen(),
-                      ),
-                    );
+                    Navigator.of(context).popUntil((r) => r.isFirst);
                   },
                   locale: _currentLocale,
                   onLocaleToggle: _toggleLocale,
@@ -676,12 +696,12 @@ class _MainShell extends ConsumerStatefulWidget {
   final AppDatabase db;
   final FeatureFlags flags;
   final String? tenantId;
+  final String? workstationId;
   final String cashierId;
   final String cashierName;
   final String role;
 
-  /// "Выйти из системы" — full sign-out, routes to owner email+password
-  /// login. Called from the bottom-sheet "Logout" item.
+  /// "Выйти из системы" — full sign-out, routes back to login/PIN screen.
   final VoidCallback onLogout;
 
   /// "Сменить кассира" — session drop that routes straight to the cashier
@@ -704,6 +724,7 @@ class _MainShell extends ConsumerStatefulWidget {
     required this.db,
     required this.flags,
     required this.tenantId,
+    this.workstationId,
     required this.cashierId,
     required this.cashierName,
     required this.role,
@@ -762,28 +783,16 @@ class _MainShellState extends ConsumerState<_MainShell> {
     super.initState();
     _viewMode = _isOwner ? ViewMode.owner : ViewMode.cashier;
     _catalogService = _buildCatalogService();
-    // Only cashiers have shifts. Owners/admins/managers don't poll
-    // `/api/shifts/current/{id}` — see [_isCashier] for rationale.
-    if (_isCashier) _loadShift();
-    // Pending-products count is no longer polled eagerly on login. The
-    // Approval screen refreshes its own count via the onCountChanged
-    // callback when the owner actually opens that tab. Keeping the poll
-    // in initState caused a noisy 404 in the log on every owner login
-    // (the server-side approval queue isn't built yet) and delayed the
-    // badge by exactly one round-trip for zero user benefit.
+    _loadShift();
     _resetInactivityTimer();
   }
 
   @override
   void didUpdateWidget(covariant _MainShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Rebuild the catalog service only when its inputs actually change —
-    // tenant id is the only one that can flip (api/db/flags are owned by
-    // the parent _PosAppState and are stable for the lifetime of the
-    // process). This prevents stale closures over old tenantId after
-    // owner login completes mid-session.
     if (oldWidget.tenantId != widget.tenantId) {
       _catalogService = _buildCatalogService();
+      _loadShift();
     }
   }
 
@@ -841,6 +850,16 @@ class _MainShellState extends ConsumerState<_MainShell> {
 
   Future<void> _loadShift() async {
     try {
+      if (widget.tenantId != null && widget.tenantId!.isNotEmpty) {
+        final shiftRepo = ShiftRepository(widget.db, tenantId: widget.tenantId!);
+        final openRow = await shiftRepo.findLatestOpen(
+          userId: widget.cashierId.isEmpty ? null : widget.cashierId,
+          workstationId: widget.workstationId,
+        );
+        if (mounted) setState(() => _currentShiftId = openRow?.id);
+        return;
+      }
+      if (!_isCashier) return;
       final resp = await widget.api.getCurrentShift(widget.cashierId);
       if (mounted) setState(() => _currentShiftId = resp['ID'] as String?);
     } on Exception catch (_) {
@@ -1061,14 +1080,22 @@ class _MainShellState extends ConsumerState<_MainShell> {
   }
 
   Widget _buildPage(_PageId page) => switch (page) {
-    _PageId.pos      => PosScreen(shiftId: _currentShiftId, cashierId: widget.cashierId, role: widget.role),
-    _PageId.shift    => ShiftScreen(api: widget.api, cashierId: widget.cashierId, cashierName: widget.cashierName, onShiftChanged: _loadShift),
+    _PageId.pos      => PosScreen(
+      shiftId: _currentShiftId,
+      cashierId: widget.cashierId,
+      role: widget.role,
+      onShiftChanged: _loadShift,
+    ),
+    _PageId.shift    => ShiftScreen(
+      api: widget.api,
+      cashierId: widget.cashierId,
+      cashierName: widget.cashierName,
+      workstationId: widget.workstationId,
+      onShiftChanged: _loadShift,
+      onOpenPos: () => setState(() => _currentPage = _PageId.pos),
+    ),
     _PageId.products => ProductsScreen(
       api: widget.api,
-      // T4.4c: factory picks drift vs. legacy HTTP based on FeatureFlags.
-      // Memoized in initState/didUpdateWidget — see [_catalogService].
-      // Building it inside _buildPage (which runs on every rebuild) leaked
-      // a fresh drift-watching service on each inactivity-timer tick.
       catalog: _catalogService,
     ),
     _PageId.cashiers => CashiersScreen(api: widget.api),
@@ -1077,7 +1104,13 @@ class _MainShellState extends ConsumerState<_MainShell> {
     _PageId.delivery => DeliveryScreen(api: widget.api, cashierId: widget.cashierId, cashierName: widget.cashierName),
     _PageId.approval => ApprovalScreen(api: widget.api, reviewerId: widget.cashierId, reviewerName: widget.cashierName, onCountChanged: _loadPendingCount),
     _PageId.audit    => AuditScreen(api: widget.api),
-    _PageId.settings => SettingsScreen(api: widget.api, onLogout: widget.onLogout, role: widget.role),
+    _PageId.settings => PharmacySettingsHome(
+      db: widget.db,
+      tenantId: widget.tenantId,
+      api: widget.api,
+      onLogout: widget.onLogout,
+      role: widget.role,
+    ),
   };
 }
 

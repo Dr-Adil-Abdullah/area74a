@@ -202,3 +202,32 @@ Next: wire Money.format + POS price tier from these keys (small approved change)
 or custom fields, when Flutter is available for tests.
 
 ---
+
+## Session 4 — 15–16 Sep 2026 & 1 Oct 2026
+
+**Phase:** 2 & 3 & 5 & 7 (Wiring & Offline Completion)  
+**App code:** yes
+
+### What was done
+
+1. **MoneyConfig & PriceBook (`2fe2fb6`, `f6977ba`) + `HOW_TO_TEST.md` (`2db14c3`)**:
+   - Added `MoneyConfig` (`Rs.`, `PKR`, tax master switch ON/OFF, inclusive/exclusive) and `PriceBook` (`Retail`, `VIP`, `Doctor` extra tiers stored in `settings` under `map.product_prices`).
+   - Added unit tests `test/core/utils/money_config_test.dart` and `test/core/utils/price_book_test.dart`.
+2. **Step 1 — Wire `PharmacySettingsHome`, `PriceBook.resolve`, and First-Run Hydration**:
+   - Wired `PharmacySettingsHome` into `_MainShell` (`_PageId.settings` in `lib/main.dart`) and the POS Settings action tile (`lib/features/sales/screens/pos_screen.dart`).
+   - Wired `PriceBook.resolve` into `SalesController.addToCart`, `SalesController.setCustomerType` (including live re-pricing of items already in the cart when switching Customer / VIP / Doctor chips, using `CartItem.effectiveRetailPrice`), and `_SearchResultsOverlay` in `PosScreen`.
+   - Fixed first-run `_activeTenantId` / `_activeWorkstationId` hydration in `_PosAppState` so completing `StandaloneSetupScreen` immediately activates local Drift repositories, seeds `PharmacySettingsStore` (including the owner's `storeName`), and hydrates `MoneyConfig` without needing an app restart.
+3. **Step 2 — 100% Offline Drift Execution for Products, POS Search/Scan, Shifts/Z-Report, and Cashiers**:
+   - `ProductsScreen`: wired Create, Edit, and Delete to local `ProductRepository`; exposed `PurchasePrice` via `ProductCatalogEntry.toLegacyMap()`; filtered out soft-deleted (`isActive: false`) products; added price validation (`Doctor <= Retail`, confirmation warning when `Purchase > Retail`).
+   - `SalesController`: wired `searchProduct`, `scanBarcode`, and `loadCategories` to local `ProductCatalogService` and `CategoryRepository` when available, while keeping the legacy `ApiClient` fallback for existing unit tests.
+   - `ShiftScreen`, `ShiftCloseScreen`, `XReportSheet`, `_MainShell._loadShift`, and POS cash deposit/withdraw: wired to local `ShiftRepository` and `ReceiptRepository` for all roles (including `owner`); fixed PKR denomination calculation and replaced broken named routes (`'/pos'`, `'/shift-close'`, `'/returns'`) with direct callbacks / `MaterialPageRoute`.
+   - `CashiersScreen`: wired list, create, edit, PIN reset (`BCrypt`), and deactivate to local `CashierRepository`.
+4. **Step 3 — English Localization (`app_en.arb` + `AppLocalizationsEn` + Default `'en'`)**:
+   - Created `lib/core/l10n/app_en.arb` and `lib/core/l10n/app_localizations_en.dart` implementing all 488 localization members in English for Pakistan Pharmacy POS (`PKR` / `Rs.`, `NTN / CNIC`, `Card / JazzCash / EasyPaisa`, etc.).
+   - Registered `Locale('en')` as the first supported locale in `AppLocalizations.supportedLocales`, added `'en'` to `LocaleStore._supported`, and set the default app locale to `'en'` in `lib/main.dart` (`_toggleLocale` switches `'en'` ↔ `'ru'`).
+   - Translated hardcoded Russian UI strings in `HifiChrome`, `HifiTotals`, `PosScreen`, `ShiftScreen`, `ShiftCloseScreen`, `XReportSheet`, `ReturnsScreen`, `DebtsScreen`, `ProductsScreen`, `ImportScreen`, `AuditScreen`, `CashiersScreen`, `PinScreen`, `SyncStatusChip`, and `SyncStatusSheet` to English while preserving strings directly asserted by existing unit/widget tests in `test/`.
+
+### Tests updated
+
+- `test/features/sales/controllers/sales_controller_test.dart`: added test for `setCustomerType` + `PriceBook.resolve` on `addToCart` and live cart re-pricing across `Customer` → `VIP` → `Doctor` → `Customer`.
+

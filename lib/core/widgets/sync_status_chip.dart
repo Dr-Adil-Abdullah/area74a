@@ -105,14 +105,14 @@ class SyncStatusChip extends ConsumerWidget {
       case SyncStatusTier.green:
         return 'ONLINE';
       case SyncStatusTier.amber:
-        if (pending > 0) return 'ОЧЕРЕДЬ · $pending';
-        return 'СТАРЫЕ ДАННЫЕ';
+        if (pending > 0) return 'QUEUE · $pending';
+        return 'STALE DATA';
       case SyncStatusTier.red:
         if (!s.online) return 'OFFLINE · $pending';
-        if (pending > 0) return 'ЗАСТРЯЛО · $pending';
+        if (pending > 0) return 'STUCK · $pending';
         return 'OFFLINE';
       case SyncStatusTier.grey:
-        return 'НЕ СИНХР.';
+        return 'NOT SYNCED';
     }
   }
 

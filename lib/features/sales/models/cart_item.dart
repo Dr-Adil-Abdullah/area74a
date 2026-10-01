@@ -8,6 +8,9 @@ class CartItem {
   final String? ntin;
   final String unit;
   final int basePrice; // тиын (за шт или за кг)
+  /// Original retail price (paisa/tiyin) before customer-type tier resolution.
+  /// Null means [basePrice] is already the retail price.
+  final int? retailPrice;
   final bool isWeighted;
   final int vatRate;
   final double quantity; // штуки или кг
@@ -23,6 +26,7 @@ class CartItem {
     this.ntin,
     required this.unit,
     required this.basePrice,
+    this.retailPrice,
     this.isWeighted = false,
     this.vatRate = 12,
     this.quantity = 1,
@@ -31,12 +35,16 @@ class CartItem {
     this.stockQty = -1,
   });
 
+  /// Retail price used as fallback when switching customer-type price tiers.
+  int get effectiveRetailPrice => retailPrice ?? basePrice;
+
   CartItem copyWith({
     String? productId,
     String? name,
     String? ntin,
     String? unit,
     int? basePrice,
+    int? retailPrice,
     bool? isWeighted,
     int? vatRate,
     double? quantity,
@@ -50,6 +58,7 @@ class CartItem {
       ntin: ntin ?? this.ntin,
       unit: unit ?? this.unit,
       basePrice: basePrice ?? this.basePrice,
+      retailPrice: retailPrice ?? this.retailPrice,
       isWeighted: isWeighted ?? this.isWeighted,
       vatRate: vatRate ?? this.vatRate,
       quantity: quantity ?? this.quantity,

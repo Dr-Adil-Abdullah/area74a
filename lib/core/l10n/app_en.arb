@@ -1,0 +1,752 @@
+{
+  "@@locale": "en",
+  "appTitle": "Pharmacy POS",
+  "appRegion": "PAKISTAN",
+  "navPos": "POS",
+  "navShift": "SHIFTS",
+  "navProducts": "MEDICINES",
+  "navStaff": "STAFF",
+  "navDebts": "CREDIT / DEBTS",
+  "navAnalytics": "ANALYTICS",
+  "navDelivery": "PURCHASES",
+  "navApproval": "APPROVAL",
+  "navAudit": "AUDIT LOG",
+  "navSettings": "SETTINGS",
+  "navPosShort": "POS",
+  "navShiftShort": "Shifts",
+  "navMore": "More",
+  "navProductsShort": "Medicines",
+  "navStaffShort": "Staff",
+  "navDebtsShort": "Debts",
+  "navAnalyticsShort": "Analytics",
+  "navDeliveryShort": "Purchases",
+  "navApprovalShort": "Approval",
+  "navAuditShort": "Audit",
+  "navSettingsShort": "Settings",
+  "modeCashier": "Cashier",
+  "modeOwner": "Owner",
+  "logout": "Sign Out",
+  "systemOnline": "System Online",
+  "shiftOpened": "Shift Open",
+  "shiftClosed": "Shift Closed",
+  "roleOwner": "Owner",
+  "roleAdmin": "Administrator",
+  "roleSeniorCashier": "Senior Cashier",
+  "roleSeniorCashierShort": "Sr. Cashier",
+  "roleCashier": "Cashier",
+  "cancel": "Cancel",
+  "ok": "OK",
+  "close": "Close",
+  "create": "Create",
+  "delete": "Delete",
+  "refresh": "Refresh",
+  "add": "Add",
+  "save": "Save",
+  "search": "Search",
+  "loadMore": "Load More",
+  "noData": "No data",
+  "errorPrefix": "Error: {error}",
+  "@errorPrefix": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pinTerminal": "Terminal #001",
+  "pinSelectProfile": "SELECT PROFILE",
+  "pinCashierLabel": "Cashier",
+  "pinEnterForLogin": "Enter PIN to sign in",
+  "pinChangeTerminal": "Switch Terminal",
+  "pinWelcome": "Welcome",
+  "pinEnterCode": "Enter 4-digit PIN code",
+  "pinEncryptedAccess": "ENCRYPTED ACCESS",
+  "pinFirstRunTitle": "Welcome!",
+  "pinFirstRunSubtitle": "Create the first user",
+  "pinFieldName": "Name",
+  "pinFieldPin": "PIN code (4 digits)",
+  "pinFieldConfirm": "Confirm PIN",
+  "pinErrorLength": "PIN must be 4 digits",
+  "pinErrorMismatch": "PIN codes do not match",
+  "pinCreateAndLogin": "Create & Sign In",
+  "pinLockedMessage": "Locked: {display}",
+  "@pinLockedMessage": {
+    "placeholders": {
+      "display": {
+        "type": "String"
+      }
+    }
+  },
+  "pinSec": "sec.",
+  "paymentTitle": "Payment",
+  "paymentToPay": "Amount Due",
+  "paymentVatLine": "incl. Tax: {amount}",
+  "@paymentVatLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentCash": "Cash",
+  "paymentCard": "Card",
+  "paymentKaspiQR": "QR / Wallet",
+  "paymentMix": "Split",
+  "paymentChange": "Change",
+  "paymentCardHint": "Tap or insert card on terminal",
+  "paymentQRHint": "Show QR code to customer",
+  "paymentPayButton": "Pay {amount}",
+  "@paymentPayButton": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentPendingButton": "Enter {amount}",
+  "@paymentPendingButton": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftNotOpened": "Shift Not Open",
+  "shiftCashierLabel": "Cashier: {name}",
+  "@shiftCashierLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "shiftCashInDrawer": "Cash in Drawer (Rs.)",
+  "shiftOpen": "Open Shift",
+  "shiftReconciliation": "Shift Reconciliation",
+  "shiftCountCash": "Cash Count",
+  "shiftCountInstruction": "Enter the count for each denomination in the drawer.",
+  "shiftBanknote": "DENOMINATION",
+  "shiftCoin": "COINS",
+  "shiftSubtotal": "Subtotal",
+  "shiftManualAdjust": "Manual Adjustment",
+  "shiftAdjustSubtitle": "Notes on shortage or overage",
+  "shiftNote": "Note",
+  "shiftStatCash": "CASH",
+  "shiftStatCard": "CARD",
+  "shiftStatKaspiQR": "QR / WALLET",
+  "shiftStatReturns": "RETURNS",
+  "shiftSummary": "Shift Summary",
+  "shiftStartBalance": "Opening Cash",
+  "shiftCashSales": "Cash Sales",
+  "shiftReturnsPayouts": "Returns / Payouts",
+  "shiftExpectedBalance": "EXPECTED CASH",
+  "shiftCounted": "COUNTED",
+  "shiftDiscrepancy": "Discrepancy",
+  "shiftLabel": "Shift",
+  "shiftNumber": "Shift #{number}",
+  "@shiftNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "shiftReceipts": "receipts",
+  "shiftCashStart": "Opening Cash",
+  "shiftCurrentBalance": "Current Balance",
+  "shiftCloseZReport": "Close Shift (Z-Report)",
+  "shiftCloseConfirmTitle": "Close Shift?",
+  "shiftCloseConfirmBody": "A Z-Report will be generated. This action cannot be undone.",
+  "shiftCloseButton": "Close Shift",
+  "shiftCloseFooter": "By closing the shift, you confirm the cash count in the drawer.",
+  "productsTitle": "Medicines & Products",
+  "productsCountLabel": "{count} items in catalog",
+  "@productsCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "productsTotalStat": "TOTAL ITEMS",
+  "productsWeightedStat": "WEIGHTED",
+  "productsPieceStat": "UNIT / PACK",
+  "productsAvgPriceStat": "AVG PRICE",
+  "productsTotalShort": "TOTAL",
+  "productsAvgPriceShort": "AVG PRICE",
+  "productsSearchHint": "Search by medicine name or barcode...",
+  "productsTabAll": "All ({count})",
+  "@productsTabAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "productsTabWeighted": "Weighted ({count})",
+  "@productsTabWeighted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "productsTabPiece": "Unit ({count})",
+  "@productsTabPiece": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "productsColName": "PRODUCT",
+  "productsColBarcode": "BARCODE",
+  "productsColVat": "TAX",
+  "productsColPrice": "PRICE",
+  "productsNotFound": "Nothing found",
+  "productsEmpty": "No products yet",
+  "productsTryAnother": "Try another search query",
+  "productsEmptyHint": "Add your first medicine using the + Add button above",
+  "productsDeleteConfirm": "Delete product?",
+  "productsNew": "New Medicine / Product",
+  "productsFieldBarcode": "Barcode (GTIN)",
+  "productsNkt": "Label",
+  "productsEnterBarcode": "Enter barcode",
+  "productsNktNotFound": "Not found in catalog",
+  "productsNktError": "Lookup error: {error}",
+  "@productsNktError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "productsFieldName": "Medicine / Product Name",
+  "productsFieldPrice": "Retail Price",
+  "productsWeighted": "Sold by weight / measure",
+  "productsWeightedSubPriceKg": "Price per kg",
+  "productsWeightedSubPricePcs": "Price per unit",
+  "productsTypeWeighted": "Weighted",
+  "productsTypePiece": "Unit",
+  "cashiersTitle": "Staff & Cashiers",
+  "cashiersCountLabel": "{count} staff members",
+  "@cashiersCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cashiersStatTotal": "Total",
+  "cashiersStatOwners": "Owners",
+  "cashiersStatManagers": "Managers",
+  "cashiersColName": "NAME",
+  "cashiersColRole": "ROLE",
+  "cashiersEmpty": "No cashiers found",
+  "cashiersNew": "New Cashier",
+  "cashiersFieldName": "Name",
+  "cashiersFieldPin": "PIN (4 digits)",
+  "cashiersFieldRole": "Role",
+  "cashiersEnterName": "Enter name",
+  "debtsTitle": "Customer Credit / Debts",
+  "debtsCountLabel": "{open} open, {clients} customers",
+  "@debtsCountLabel": {
+    "placeholders": {
+      "open": {
+        "type": "int"
+      },
+      "clients": {
+        "type": "int"
+      }
+    }
+  },
+  "debtsNewDebt": "New Credit Entry",
+  "debtsTotalBanner": "TOTAL OUTSTANDING",
+  "debtsRecordsLabel": "records",
+  "debtsTabOpen": "Open ({count})",
+  "@debtsTabOpen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "debtsTabAll": "All ({count})",
+  "@debtsTabAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "debtsEmpty": "No credit records",
+  "debtsPayTitle": "Receive Credit Payment",
+  "debtsPayRemaining": "Remaining: {amount}",
+  "@debtsPayRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "debtsFieldAmount": "Amount",
+  "debtsEnterAmount": "Enter amount",
+  "debtsPay": "Receive Payment",
+  "debtsCreateTitle": "Credit Sale",
+  "debtsFieldClient": "Customer",
+  "debtsFieldNote": "Note",
+  "debtsSelectClient": "Select customer",
+  "debtsRecord": "Record Credit",
+  "debtsClientDefault": "Customer",
+  "debtsPaid": "Paid",
+  "debtsOfTotal": "of {amount}",
+  "@debtsOfTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "debtsPayment": "Pay",
+  "debtsClosed": "Closed",
+  "debtsPaidLabel": "Paid: {amount}",
+  "@debtsPaidLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "analyticsTitle": "Analytics",
+  "analyticsSubtitle": "Business overview",
+  "analyticsToday": "TODAY",
+  "analyticsYesterday": "YESTERDAY",
+  "analyticsWeek": "WEEK",
+  "analyticsMonth": "MONTH",
+  "analyticsReceipts": "receipts",
+  "analyticsPaymentTypes": "Sales by Payment Method",
+  "analyticsTopProducts": "Top Products (30 days)",
+  "analyticsCashiers": "Cashiers",
+  "analyticsLowStock": "Low Stock",
+  "analyticsDebts": "Credit / Debts",
+  "analyticsAllNormal": "All normal",
+  "analyticsCash": "Cash",
+  "analyticsCard": "Card",
+  "analyticsKaspiQR": "QR / Wallet",
+  "analyticsOpenDebts": "Open",
+  "analyticsToPayDebts": "Outstanding",
+  "analyticsPaidDebts": "Collected",
+  "deliveryTitle": "Stock Purchase / Receiving",
+  "deliverySearchHint": "Search product...",
+  "deliveryCostLabel": "Cost: {amount}",
+  "@deliveryCostLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "deliveryLinesLabel": "Items ({count})",
+  "@deliveryLinesLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deliveryEmptyHint": "Add products to receive stock",
+  "deliveryFieldQty": "Qty",
+  "deliveryFieldCost": "Cost Price",
+  "deliverySubmit": "Complete Purchase",
+  "deliverySuccess": "Purchase recorded",
+  "approvalTitle": "Product Approval",
+  "approvalSubtitle": "Products awaiting review",
+  "approvalEmpty": "No pending products",
+  "approvalPending": "PENDING",
+  "approvalFrom": "by: {name}",
+  "@approvalFrom": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "approvalBarcode": "Barcode",
+  "approvalNtin": "Code",
+  "approvalSalePrice": "Sale Price",
+  "approvalReject": "Reject",
+  "approvalApprove": "Approve",
+  "approvalApproveTitle": "Approve Product",
+  "approvalFieldName": "Name",
+  "approvalFieldPrice": "Sale Price",
+  "approvalRejectTitle": "Reject Product",
+  "approvalRejectReason": "Reason (optional)",
+  "approvalApproved": "Product approved",
+  "approvalRejected": "Product rejected",
+  "auditTitle": "Audit Log",
+  "auditTotalLabel": "Total entries: {count}",
+  "@auditTotalLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "auditEmpty": "No audit entries",
+  "auditActionReceiptCreated": "Receipt created",
+  "auditActionShiftOpened": "Shift opened",
+  "auditActionShiftClosed": "Shift closed",
+  "auditActionNktApproved": "Product approved",
+  "auditActionNktRejected": "Product rejected",
+  "auditActionProductCreated": "Product created",
+  "auditActionProductEdited": "Product updated",
+  "auditActionProductDeleted": "Product deleted",
+  "auditActionDebtCreated": "Credit recorded",
+  "auditActionDebtPaid": "Credit payment received",
+  "auditActionCashierCreated": "Cashier added",
+  "auditActionDeliveryReceived": "Purchase received",
+  "settingsTitle": "Settings",
+  "settingsSubtitle": "System configuration",
+  "settingsActions": "Actions",
+  "settingsSeedDemo": "Load Demo Data",
+  "settingsSeedDemoSub": "Sample products, categories, and customers",
+  "settingsCheckNkt": "Catalog Lookup",
+  "settingsCheckNktSub": "Search product by barcode or name",
+  "settingsSystem": "System",
+  "settingsAbout": "About",
+  "settingsAboutSub": "Pharmacy POS v0.2.2",
+  "settingsServer": "Server",
+  "settingsServerStatus": "Server Status",
+  "settingsServerConnected": "Connected",
+  "settingsServerUnavailable": "Offline (Local Mode)",
+  "settingsIntegrations": "Integrations",
+  "settingsLanguage": "Language",
+  "settingsLanguageSub": "English",
+  "settingsLanguageKk": "Қазақша",
+  "settingsFiscal": "Fiscal Printer",
+  "settingsNotConnected": "Not connected",
+  "settingsNktTitle": "National Catalog",
+  "settingsNktConnected": "Connected",
+  "settingsNktNotConfigured": "Not configured",
+  "settingsNktSearch": "Catalog Search",
+  "settingsNktBarcode": "Barcode",
+  "settingsNktName": "Name",
+  "settingsNktGtinHint": "GTIN (barcode)",
+  "settingsNktNameHint": "Product name",
+  "settingsNktNotFound": "Nothing found",
+  "settingsNktSocial": "Essential",
+  "posTabProducts": "Products",
+  "posTabReceipt": "Receipt",
+  "posSearchHint": "Search medicine / barcode / SKU...",
+  "posCatAll": "All",
+  "posCatFood": "Tablets",
+  "posCatDrinks": "Syrups",
+  "posCatGrocery": "Surgical",
+  "posCatDairy": "Injections",
+  "posCatOther": "Other",
+  "posOnline": "Online",
+  "posEnterNameOr": "Enter medicine name or",
+  "posScanBarcode": "scan barcode",
+  "posNotFoundLocally": "Not found locally",
+  "posEnterFullBarcode": "Enter full barcode (8–14 digits)",
+  "posForAutoNkt": "for catalog lookup",
+  "posBarcodeProgress": "Entered {current} of 8–14 digits",
+  "@posBarcodeProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      }
+    }
+  },
+  "posNotFoundQuery": "No results for \"{query}\"",
+  "@posNotFoundQuery": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "posSearchingNkt": "Searching catalog...",
+  "posNotFoundLocallyHeader": "Product not found locally",
+  "posNktFoundCount": "Found {count} in catalog for barcode {barcode}",
+  "@posNktFoundCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "barcode": {
+        "type": "String"
+      }
+    }
+  },
+  "posNktSelectInstruction": "Select a product to add to catalog:",
+  "posNktAddTitle": "Add Product",
+  "posNktPriceKg": "Price per kg",
+  "posNktPricePcs": "Price",
+  "posNktAddAndSell": "Add & Sell",
+  "posNktSentForApproval": "Product sent for owner approval",
+  "posNktCreateError": "Error creating product: {error}",
+  "@posNktCreateError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "posCartTitle": "Current Receipt",
+  "posCartItems": "items",
+  "posCartEmpty": "Cart is empty",
+  "posCartEmptyHint": "Scan or search a medicine above",
+  "posQuantity": "Quantity",
+  "posVat12": "Tax",
+  "posTotal": "Total",
+  "posPayment": "PAY",
+  "posPaymentWithAmount": "PAY  {amount}",
+  "@posPaymentWithAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "posTakeaway": "Takeaway",
+  "posCancelSale": "Clear",
+  "posCancelSaleTitle": "Cancel sale?",
+  "posCancelSaleBody": "There are {count} items in the cart. They will be cleared.",
+  "@posCancelSaleBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "posCancelSaleConfirm": "Clear Cart",
+  "posCancelSaleKeep": "Keep",
+  "posOpenShiftFirst": "Please open a shift first (Shifts tab)",
+  "analyticsAllTime": "All Time",
+  "analyticsAutoRefresh": "Auto-refresh",
+  "analyticsAvgReceipt": "Average Receipt",
+  "analyticsClearFilter": "Clear Filter",
+  "analyticsDateRange": "Date Range",
+  "analyticsExport": "Export",
+  "analyticsExportSuccess": "Export completed",
+  "analyticsProductName": "Product",
+  "analyticsQty": "Qty",
+  "analyticsRevenue": "Revenue",
+  "analyticsRevenueByProduct": "Revenue by Product",
+  "approvalBatchApprove": "Approve Selected",
+  "approvalBatchCount": "{count, plural, one{{count} product} other{{count} products}}",
+  "approvalDefaultMarkup": "Default Markup",
+  "cashiersDeactivate": "Deactivate",
+  "cashiersDeactivateConfirm": "Deactivate cashier?",
+  "cashiersDeactivateHint": "This staff member will no longer be able to sign in.",
+  "cashiersDeactivated": "Cashier deactivated",
+  "cashiersEdit": "Edit",
+  "cashiersNewPin": "New PIN",
+  "cashiersPinConfirm": "Confirm PIN",
+  "cashiersResetPin": "Reset PIN",
+  "cashiersResetPinSuccess": "PIN reset successfully",
+  "cashiersRoleAdminDesc": "Full access except owner settings",
+  "cashiersRoleCashierDesc": "Sales and shifts only",
+  "cashiersRoleSeniorDesc": "Cashier + returns and discounts",
+  "debtsOverdue": "Overdue",
+  "debtsRemainingAmount": "Remaining Balance",
+  "debtsDaysSuffix": "{days, plural, one{{days} day} other{{days} days}}",
+  "@debtsDaysSuffix": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "debtsSearch": "Search by customer name or phone",
+  "deliveryActualQty": "Actual",
+  "deliveryAddSupplier": "Add Supplier",
+  "deliveryCreateProduct": "Create Product",
+  "deliveryDiscrepancy": "Discrepancy",
+  "deliveryDocNumber": "Invoice Number",
+  "deliveryExpectedQty": "Expected",
+  "deliveryHistory": "Purchase History",
+  "deliveryNoHistory": "No purchase history",
+  "deliverySupplier": "Supplier",
+  "done": "Done",
+  "importConfirm": "Confirm Import",
+  "importCreate": "Created",
+  "importDone": "Import completed",
+  "importDownloadTemplate": "Download Template",
+  "importErrors": "Errors",
+  "importSelectFile": "Select File",
+  "importSkipped": "Skipped",
+  "importTemplateSaved": "Template saved",
+  "importTitle": "Import Products",
+  "importUpdate": "Updated",
+  "importUploadHint": "CSV or Excel supported",
+  "paymentCancelTimeout": "Cancel Waiting",
+  "paymentDebt": "On Credit",
+  "paymentDebtHint": "Recorded as customer credit",
+  "paymentNewReceipt": "New Receipt",
+  "paymentNoShift": "Open a shift first",
+  "paymentPrintCopy": "Print Copy",
+  "paymentProcessing": "Processing payment",
+  "paymentReceiptNumber": "Receipt #{number}",
+  "paymentSelectClient": "Select Customer",
+  "paymentSuccess": "Payment Complete",
+  "paymentTimeout": "Payment timed out",
+  "posDelete": "Remove",
+  "posEnterDiscount": "Discount",
+  "posItemDiscount": "Item Discount",
+  "posMultiAdd": "Add Multiple",
+  "posParkCart": "Hold Bill",
+  "posParkedCarts": "Held Bills",
+  "posResume": "Resume",
+  "posUndoRemove": "Undo Remove",
+  "productsEdit": "Edit Product",
+  "productsMargin": "Margin",
+  "productsPurchasePrice": "Purchase Price",
+  "productsSalePrice": "Retail Price",
+  "productsStock": "Stock",
+  "settingsBackup": "Backup & Restore",
+  "settingsBackupExport": "Export Backup",
+  "settingsBackupSub": "Save and restore local database",
+  "settingsPrinter": "Receipt Printer",
+  "settingsPrinterSub": "Connection and test print",
+  "settingsReceiptFormat": "Receipt Format",
+  "settingsReceiptFormatSub": "Header, footer, and store details",
+  "settingsScanner": "Barcode Scanner",
+  "settingsScannerSub": "USB or camera scanner",
+  "settingsSyncStatus": "Sync Status",
+  "settingsWebkassa": "Fiscal Integration",
+  "settingsWebkassaLogin": "Login",
+  "settingsWebkassPwd": "Password",
+  "settingsWebkassaSub": "Online fiscal receipt service",
+  "settingsWebkassaTestMode": "Test Mode",
+  "shellNoNotifications": "No notifications",
+  "switchCashier": "Switch Cashier",
+  "shiftDeposit": "Cash In",
+  "shiftDepositSuccess": "Cash added to drawer",
+  "shiftDiscrepancyNote": "Discrepancy note",
+  "shiftEnterAmount": "Amount",
+  "shiftEnterNote": "Note",
+  "shiftNoReceipts": "No receipts in this shift",
+  "shiftOverdue24h": "Shift open for over 24 hours",
+  "shiftOverdueWarning": "Please close the shift on time",
+  "shiftPrintReport": "Print Report",
+  "shiftReceiptList": "Shift Receipts",
+  "shiftSkipDenomination": "Skip Denomination Count",
+  "shiftManualTotalTitle": "Enter Cash Total Manually",
+  "shiftManualTotalBody": "Enter the counted cash total in the drawer. This replaces the denomination count.",
+  "shiftManualTotalLabel": "Total Cash",
+  "shiftManualTotalClear": "Reset",
+  "shiftWithdraw": "Cash Out",
+  "shiftWithdrawSuccess": "Cash removed from drawer",
+  "shiftXReport": "X-Report",
+  "posStockExceeded": "Insufficient stock: {qty} available",
+  "@posStockExceeded": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "posParkedCartLabel": "{itemCount} items · {total}",
+  "@posParkedCartLabel": {
+    "placeholders": {
+      "itemCount": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "@approvalBatchCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@paymentReceiptNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentTerminalUnavailable": "Payment terminal not connected",
+  "pinSelectCashier": "Select Cashier",
+  "pinCashierCountLabel": "{count, plural, one{{count} profile} other{{count} profiles}}",
+  "@pinCashierCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pinSelectedPrefix": "Selected: ",
+  "pinProceedToPin": "Next → PIN",
+  "pinLastBadge": "LAST USED",
+  "pinAdminTile": "Administrator",
+  "pinAdminTileSubtitle": "Email + password",
+  "pinNewCashier": "New Cashier",
+  "posActionHistory": "History",
+  "posActionPrintReceipt": "Print Receipt",
+  "posActionReportX": "X-Report",
+  "posActionReportZ": "Z-Report",
+  "posActionDeposit": "Cash In",
+  "posActionWithdraw": "Cash Out",
+  "posActionOpenDrawer": "Open Drawer",
+  "posActionGoodsCodes": "Item Codes",
+  "posActionLock": "Lock Screen",
+  "shellSwitchCashierTitle": "Switch cashier?",
+  "shellSwitchCashierMessage": "There are items in the cart. Switching cashier will clear the current sale. Continue?",
+  "shellSwitchCashierConfirm": "Switch",
+  "managerOverrideTitle": "Manager Approval Required",
+  "managerOverrideActionLabel": "ACTION",
+  "managerOverrideLoginLabel": "Manager Login",
+  "managerOverridePinLabel": "Manager PIN",
+  "managerOverrideConfirm": "Approve",
+  "managerOverrideCancel": "Cancel",
+  "managerOverrideLocked": "Locked for 30 sec after 3 failed attempts",
+  "managerOverrideNotFound": "Login not found",
+  "managerOverrideWrongPin": "Incorrect PIN",
+  "managerOverrideThisUser": "This user",
+  "managerOverrideInsufficientRole": "{name} is not authorized for this operation",
+  "@managerOverrideInsufficientRole": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "managerOverrideInactive": "Account is deactivated",
+  "paymentRemaining": "Remaining",
+  "posScanPrompt": "Scan or search a medicine",
+  "posScanPromptHint": "the last added item will appear here",
+  "platformSectionTitle": "Platform",
+  "platformStandaloneTitle": "Standalone Mode",
+  "platformStandaloneSubtitle": "All data is stored on this device.",
+  "platformLinkedTitle": "Connected to Platform",
+  "platformLinkedSyncing": "Cloud sync is active",
+  "platformStorePrefix": "Store",
+  "platformUnlinkAction": "Disconnect",
+  "platformUnlinkSubtitle": "Disconnect register from cloud — local data stays on this device",
+  "platformUnlinkConfirmTitle": "Disconnect register?",
+  "platformUnlinkConfirmBody": "All local data will stay on this device and cloud sync will stop.",
+  "platformUnlinkedByAdmin": "Register was disconnected by administrator. Local data is preserved.",
+  "connectSkip": "Skip — work offline",
+  "connectSkipHint": "Run standalone on this device with all data stored locally.",
+  "standaloneTitle": "Pharmacy POS Setup",
+  "standaloneSubtitle": "All data is stored locally on this device. Create the owner account to manage the store and cashiers.",
+  "standaloneOwnerName": "Owner Name",
+  "standaloneStoreName": "Medical Store Name (optional)",
+  "standalonePin": "PIN (4 digits)",
+  "standalonePinConfirm": "Confirm PIN",
+  "standalonePinMismatch": "PIN codes do not match",
+  "standaloneSaveError": "Could not save setup data — please try again",
+  "standaloneDbError": "Local database unavailable — please restart the app",
+  "standaloneStart": "Start Pharmacy POS",
+  "standaloneBackToConnect": "Back",
+  "syncStandalone": "Local Mode",
+  "standaloneStoreDefault": "Medical Store"
+}

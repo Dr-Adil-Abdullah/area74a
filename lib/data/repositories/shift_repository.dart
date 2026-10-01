@@ -66,6 +66,68 @@ class ShiftRepository {
   /// knows the id of (e.g. the cashier's active shift carried in BLoC state).
   Future<ShiftRow> currentOpenById(String shiftId) => _requireOpen(shiftId);
 
+  /// Fetch any shift by id (open or closed), or null if not found.
+  Future<ShiftRow?> getById(String shiftId) {
+    final q = _db.select(_db.shiftsTable)
+      ..where((s) => s.tenantId.equals(_tenantId) & s.id.equals(shiftId));
+    return q.getSingleOrNull();
+  }
+
+  /// Find the most recent currently-open shift for [userId] (or any user on the
+  /// tenant if [userId] is empty).
+  Future<ShiftRow?> findLatestOpen({String? userId, String? workstationId}) {
+    final q = _db.select(_db.shiftsTable)
+      ..where((s) => s.tenantId.equals(_tenantId) & s.closedAt.isNull());
+    if (userId != null && userId.isNotEmpty) {
+      q.where((s) => s.userId.equals(userId));
+    }
+    if (workstationId != null && workstationId.isNotEmpty) {
+      q.where((s) => s.workstationId.equals(workstationId));
+    }
+    q
+      ..orderBy([(s) => OrderingTerm.desc(s.openedAt)])
+      ..limit(1);
+    return q.getSingleOrNull();
+  }
+
+  /// Compute the next sequential shift number for [workstationId].
+  Future<int> nextShiftNumber(String workstationId) async {
+    final rows = await (_db.select(_db.shiftsTable)
+          ..where((s) =>
+              s.tenantId.equals(_tenantId) &
+              s.workstationId.equals(workstationId)))
+        .get();
+    if (rows.isEmpty) return 1;
+    var maxNum = 0;
+    for (final r in rows) {
+      if (r.shiftNumber > maxNum) maxNum = r.shiftNumber;
+    }
+    return maxNum + 1;
+  }
+
+  /// Record a cash-in (deposit) or cash-out (withdrawal) movement on an open shift.
+  Future<void> recordCashMovement(
+    String shiftId, {
+    required int amountTiyin,
+    required bool isDeposit,
+  }) async {
+    await _db.transaction(() async {
+      final existing = await _requireOpen(shiftId);
+      final now = DateTime.now().toUtc();
+      final updated = isDeposit
+          ? existing.copyWith(
+              totalDepositsTiyin: existing.totalDepositsTiyin + amountTiyin,
+              updatedAt: now,
+            )
+          : existing.copyWith(
+              totalWithdrawalsTiyin: existing.totalWithdrawalsTiyin + amountTiyin,
+              updatedAt: now,
+            );
+      await _db.update(_db.shiftsTable).replace(updated);
+      await _enqueueUpdate(updated, now);
+    });
+  }
+
   /// Open a new shift. Returns the new shift id. Caller supplies the
   /// workstation-scoped `shiftNumber` (typically prior shift count + 1 —
   /// computed outside the repository so the Z-report counter stays in sync

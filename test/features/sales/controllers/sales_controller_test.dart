@@ -13,6 +13,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pos_system/core/utils/price_book.dart';
 import 'package:pos_system/services/api_client.dart';
 import 'package:pos_system/features/sales/controllers/sales_controller.dart';
 import 'package:pos_system/features/sales/models/cart_item.dart';
@@ -27,6 +28,7 @@ void main() {
   SalesState read() => container.read(salesControllerProvider);
 
   setUp(() {
+    PriceBook.resetToDefaults();
     api = MockApiClient();
     container = ProviderContainer(overrides: [
       salesApiClientProvider.overrideWithValue(api),
@@ -581,6 +583,36 @@ void main() {
       c.resumeParkedCart(0);
       expect(read().items.single.productId, 'prod-cola');
       expect(read().parkedCarts.single.items.single.productId, 'prod-bread');
+    });
+
+    test('setCustomerType resolves VIP/Doctor price on addToCart and re-prices existing cart items', () {
+      PriceBook.apply(extra: {
+        'prod-cola': {'VIP': 22000, 'Doctor': 20000},
+      });
+      final c = controller();
+
+      // Add as default Customer (Retail = 25000)
+      c.addToCart(cola());
+      expect(read().items.single.basePrice, 25000);
+      expect(read().subtotal, 25000);
+
+      // Switch to VIP -> existing cart item re-prices to 22000
+      c.setCustomerType('VIP');
+      expect(read().customerType, 'VIP');
+      expect(read().items.single.basePrice, 22000);
+      expect(read().subtotal, 22000);
+
+      // Switch to Doctor -> existing cart item re-prices to 20000
+      c.setCustomerType('Doctor');
+      expect(read().customerType, 'Doctor');
+      expect(read().items.single.basePrice, 20000);
+      expect(read().subtotal, 20000);
+
+      // Switch back to Customer -> restores retail 25000
+      c.setCustomerType('Customer');
+      expect(read().customerType, 'Customer');
+      expect(read().items.single.basePrice, 25000);
+      expect(read().subtotal, 25000);
     });
   });
 }

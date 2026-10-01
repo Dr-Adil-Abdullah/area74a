@@ -17,18 +17,22 @@ import 'tax_settings_screen.dart';
 class PharmacySettingsHome extends StatefulWidget {
   const PharmacySettingsHome({
     super.key,
-    required this.db,
-    required this.tenantId,
+    this.db,
+    this.tenantId,
+    this.store,
     required this.api,
     required this.onLogout,
     required this.role,
+    this.showAppBar = false,
   });
 
-  final AppDatabase db;
+  final AppDatabase? db;
   final String? tenantId;
+  final PharmacySettingsStore? store;
   final ApiClient api;
   final VoidCallback onLogout;
   final String role;
+  final bool showAppBar;
 
   @override
   State<PharmacySettingsHome> createState() => _PharmacySettingsHomeState();
@@ -45,16 +49,30 @@ class _PharmacySettingsHomeState extends State<PharmacySettingsHome> {
     _boot();
   }
 
-  Future<void> _boot() async {
-    final tenant = widget.tenantId;
-    if (tenant == null || tenant.isEmpty) {
-      setState(() {
-        _seeding = false;
-        _error = 'Local shop is not set up yet. Finish first-run PIN setup.';
-      });
-      return;
+  @override
+  void didUpdateWidget(covariant PharmacySettingsHome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tenantId != widget.tenantId || oldWidget.store != widget.store) {
+      _seeding = true;
+      _error = null;
+      _boot();
     }
-    final store = PharmacySettingsStore(SettingsRepository(widget.db, tenantId: tenant));
+  }
+
+  Future<void> _boot() async {
+    PharmacySettingsStore? store = widget.store;
+    if (store == null) {
+      final db = widget.db;
+      final tenant = widget.tenantId;
+      if (db == null || tenant == null || tenant.isEmpty) {
+        setState(() {
+          _seeding = false;
+          _error = 'Local shop is not set up yet. Finish first-run PIN setup.';
+        });
+        return;
+      }
+      store = PharmacySettingsStore(SettingsRepository(db, tenantId: tenant));
+    }
     try {
       await store.seedIfEmpty();
       await store.hydrateMoneyConfig();
@@ -97,6 +115,7 @@ class _PharmacySettingsHomeState extends State<PharmacySettingsHome> {
     final store = _store!;
 
     return Scaffold(
+      appBar: widget.showAppBar ? AppBar(title: const Text('Settings')) : null,
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(

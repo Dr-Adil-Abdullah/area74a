@@ -17,6 +17,8 @@ class ProductCatalogEntry {
     this.nameKz,
     this.barcodeGtin,
     this.ntin,
+    this.categoryId,
+    this.purchasePriceTiyin = 0,
     required this.salePriceTiyin,
     required this.saleUnit,
     required this.isWeighted,
@@ -29,11 +31,28 @@ class ProductCatalogEntry {
   final String? nameKz;
   final String? barcodeGtin;
   final String? ntin;
+  final String? categoryId;
+  final int purchasePriceTiyin;
   final int salePriceTiyin;
   final String saleUnit; // pcs|kg|...
   final bool isWeighted;
   final int vatRate; // 0 or 12
   final bool isActive;
+
+  Map<String, dynamic> toLegacyMap() => {
+        'ID': id,
+        'Name': name,
+        'NameKZ': nameKz ?? '',
+        'BarcodeGTIN': barcodeGtin ?? '',
+        'NTIN': ntin ?? '',
+        'CategoryID': categoryId ?? '',
+        'PurchasePrice': purchasePriceTiyin,
+        'SalePrice': salePriceTiyin,
+        'SaleUnit': saleUnit,
+        'IsWeighted': isWeighted,
+        'VATRate': vatRate,
+        'IsActive': isActive,
+      };
 }
 
 /// Read interface for the cashier register's catalog. The store-scoped read is
@@ -82,6 +101,8 @@ class DriftProductCatalogService implements ProductCatalogService {
         nameKz: r.nameKz,
         barcodeGtin: r.barcodeGtin,
         ntin: r.ntin,
+        categoryId: r.categoryId,
+        purchasePriceTiyin: r.purchasePriceTiyin,
         salePriceTiyin: r.salePriceTiyin,
         saleUnit: r.saleUnit,
         isWeighted: r.isWeighted,
@@ -137,6 +158,8 @@ class LegacyApiProductCatalogService implements ProductCatalogService {
         nameKz: r['NameKZ'] as String? ?? r['name_kz'] as String?,
         barcodeGtin: r['BarcodeGTIN'] as String? ?? r['barcode_gtin'] as String?,
         ntin: r['NTIN'] as String? ?? r['ntin'] as String?,
+        categoryId: r['CategoryID'] as String? ?? r['category_id'] as String?,
+        purchasePriceTiyin: _asInt(r['PurchasePrice'] ?? r['purchase_price'] ?? r['purchase_price_tiyin']) ?? 0,
         salePriceTiyin: _asInt(r['SalePrice'] ?? r['sale_price'] ?? r['sale_price_tiyin']) ?? 0,
         saleUnit: (r['SaleUnit'] ?? r['sale_unit'] ?? 'pcs') as String,
         isWeighted: (r['IsWeighted'] ?? r['is_weighted'] ?? false) as bool,

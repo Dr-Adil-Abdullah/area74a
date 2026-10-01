@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/money_config.dart';
 import '../../../core/utils/price_book.dart';
+import '../../../data/repositories/product_repository.dart';
 import '../../../services/api_client.dart';
 import '../../../services/products/product_catalog_service.dart';
 import '../../settings/pharmacy_settings_store.dart';
@@ -19,7 +20,15 @@ class ProductsScreen extends StatefulWidget {
   /// legacy HTTP path for back-compat at call sites that haven't been migrated.
   final ProductCatalogService? catalog;
 
-  const ProductsScreen({super.key, required this.api, this.catalog});
+  /// Local Drift write repository for offline-first Create / Edit / Delete.
+  final ProductRepository? productRepository;
+
+  const ProductsScreen({
+    super.key,
+    required this.api,
+    this.catalog,
+    this.productRepository,
+  });
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -44,18 +53,48 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  ProductRepository? _resolveProductRepo() {
+    if (widget.productRepository != null) return widget.productRepository;
+    try {
+      return context.read<ProductRepository?>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  PharmacySettingsStore? _resolveSettingsStore() {
+    try {
+      return context.read<PharmacySettingsStore?>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      // If a catalog service was injected (flag-driven factory), use it. This is
-      // the T4.4 data-source swap — the rest of the screen still works off the
-      // PascalCase map shape, so we adapt the service's canonical entries back
-      // into maps. Write ops (create/update/delete/generateLabels) stay on
-      // `widget.api` for this wave; they migrate behind their own flag later.
       List<Map<String, dynamic>> rows;
       if (widget.catalog case final svc?) {
-        final entries = await svc.list(includeInactive: true);
+        final entries = await svc.list(includeInactive: false);
         rows = entries.map(_entryToLegacyMap).toList();
+      } else if (_resolveProductRepo() case final repo?) {
+        final dbRows = await repo.all(includeInactive: false);
+        rows = dbRows
+            .map((r) => <String, dynamic>{
+                  'ID': r.id,
+                  'Name': r.name,
+                  'NameKZ': r.nameKz ?? '',
+                  'BarcodeGTIN': r.barcodeGtin ?? '',
+                  'NTIN': r.ntin ?? '',
+                  'CategoryID': r.categoryId ?? '',
+                  'PurchasePrice': r.purchasePriceTiyin,
+                  'SalePrice': r.salePriceTiyin,
+                  'SaleUnit': r.saleUnit,
+                  'IsWeighted': r.isWeighted,
+                  'VATRate': r.vatRate,
+                  'IsActive': r.isActive,
+                })
+            .toList();
       } else {
         final resp = await widget.api.listProducts();
         rows = (resp['products'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -68,27 +107,15 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка загрузки товаров: ${e is ApiException ? "Сервер недоступен" : "Нет связи"}')),
+          SnackBar(content: Text('Failed to load products: ${e is ApiException ? "Server unavailable" : "Offline"}')),
         );
       }
     }
   }
 
   /// Bridge the canonical [ProductCatalogEntry] to the PascalCase Go-server map
-  /// shape the UI widgets in this file were written against. Removed when the
-  /// screen is fully ported to the entry type (tracked as T4.4c).
-  static Map<String, dynamic> _entryToLegacyMap(ProductCatalogEntry e) => {
-        'ID': e.id,
-        'Name': e.name,
-        'NameKZ': e.nameKz,
-        'BarcodeGTIN': e.barcodeGtin,
-        'NTIN': e.ntin,
-        'SalePrice': e.salePriceTiyin,
-        'SaleUnit': e.saleUnit,
-        'IsWeighted': e.isWeighted,
-        'VATRate': e.vatRate,
-        'IsActive': e.isActive,
-      };
+  /// shape the UI widgets in this file were written against.
+  static Map<String, dynamic> _entryToLegacyMap(ProductCatalogEntry e) => e.toLegacyMap();
 
   List<Map<String, dynamic>> get _filtered {
     var list = _products;
@@ -358,7 +385,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
       );
     } on Exception catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -383,14 +410,57 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
     );
     if (confirm == true && mounted) {
       try {
-        await widget.api.deleteProduct(p['ID'] as String);
+        final repo = _resolveProductRepo();
+        if (repo != null) {
+          await repo.update(id: p['ID'] as String, isActive: false);
+        } else {
+          await widget.api.deleteProduct(p['ID'] as String);
+        }
         if (mounted) await _load();
       } on Exception catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       }
     }
+  }
+
+  Future<bool> _validatePrices(
+    BuildContext dialogCtx, {
+    required int purchasePriceTiyin,
+    required int salePriceTiyin,
+    required Map<String, int> extraPrices,
+  }) async {
+    final doctorPrice = extraPrices['Doctor'] ?? extraPrices['doctor'] ?? 0;
+    if (doctorPrice > 0 && salePriceTiyin > 0 && doctorPrice > salePriceTiyin) {
+      ScaffoldMessenger.of(dialogCtx).showSnackBar(
+        const SnackBar(content: Text('Doctor price cannot exceed Retail sale price')),
+      );
+      return false;
+    }
+    if (purchasePriceTiyin > 0 && salePriceTiyin > 0 && purchasePriceTiyin > salePriceTiyin) {
+      final proceed = await showDialog<bool>(
+        context: dialogCtx,
+        builder: (wCtx) => AlertDialog(
+          title: const Text('Margin Warning'),
+          content: const Text(
+            'Purchase price is higher than Retail sale price (negative margin). Save anyway?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(wCtx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(wCtx, true),
+              child: const Text('Save Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return false;
+    }
+    return true;
   }
 
   Map<String, TextEditingController> _extraPriceControllers(String? productId) {
@@ -440,7 +510,8 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
 
   void _showEditDialog(BuildContext context, Map<String, dynamic> product) {
     final l = AppLocalizations.of(context)!;
-    final store = context.read<PharmacySettingsStore?>();
+    final store = _resolveSettingsStore();
+    final repo = _resolveProductRepo();
     final nameC = TextEditingController(text: product['Name'] as String? ?? '');
     final salePriceC = TextEditingController(
       text: Money.tiyinToTenge((product['SalePrice'] as num?)?.toInt() ?? 0).toStringAsFixed(0),
@@ -519,22 +590,40 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
               onPressed: submitting
                   ? null
                   : () async {
-                      setDialogState(() => submitting = true);
                       final salePrice = ((double.tryParse(salePriceC.text) ?? 0) * 100).round();
                       final purchasePrice = ((double.tryParse(purchasePriceC.text) ?? 0) * 100).round();
+                      final extraPrices = _readExtraPrices(extraCtrls);
+                      final ok = await _validatePrices(
+                        ctx,
+                        purchasePriceTiyin: purchasePrice,
+                        salePriceTiyin: salePrice,
+                        extraPrices: extraPrices,
+                      );
+                      if (!ok || !ctx.mounted) return;
+                      setDialogState(() => submitting = true);
                       try {
-                        await widget.api.updateProduct(product['ID'] as String, {
-                          'name': nameC.text,
-                          'barcode_gtin': barcodeC.text,
-                          'sale_price': salePrice,
-                          'purchase_price': purchasePrice,
-                          'is_weighted': isWeighted,
-                          'sale_unit': isWeighted ? 'kg' : 'pcs',
-                        });
-                        await store?.saveProductExtraPrices(
-                          product['ID'] as String,
-                          _readExtraPrices(extraCtrls),
-                        );
+                        final id = product['ID'] as String;
+                        if (repo != null) {
+                          await repo.update(
+                            id: id,
+                            name: nameC.text.trim(),
+                            barcodeGtin: barcodeC.text.trim().isEmpty ? null : barcodeC.text.trim(),
+                            salePriceTiyin: salePrice,
+                            purchasePriceTiyin: purchasePrice,
+                            isWeighted: isWeighted,
+                            saleUnit: isWeighted ? 'kg' : 'pcs',
+                          );
+                        } else {
+                          await widget.api.updateProduct(id, {
+                            'name': nameC.text,
+                            'barcode_gtin': barcodeC.text,
+                            'sale_price': salePrice,
+                            'purchase_price': purchasePrice,
+                            'is_weighted': isWeighted,
+                            'sale_unit': isWeighted ? 'kg' : 'pcs',
+                          });
+                        }
+                        await store?.saveProductExtraPrices(id, extraPrices);
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (mounted) await _load();
                       } on Exception catch (e) {
@@ -552,10 +641,6 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
         ),
       ),
     ).whenComplete(() {
-      // Controllers must be disposed when the dialog closes (any path —
-      // Cancel, Save success, Save error, barrier dismiss). Without this,
-      // each open leaks a TextEditingController + the listenable it
-      // registers with the framework.
       nameC.dispose();
       salePriceC.dispose();
       purchasePriceC.dispose();
@@ -569,8 +654,10 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
   void _showAddDialog(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final pos = PosColors.of(context);
-    final store = context.read<PharmacySettingsStore?>();
+    final store = _resolveSettingsStore();
+    final repo = _resolveProductRepo();
     final nameC = TextEditingController();
+    final purchasePriceC = TextEditingController();
     final priceC = TextEditingController();
     final barcodeC = TextEditingController();
     final extraCtrls = _extraPriceControllers(null);
@@ -667,11 +754,23 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
               const SizedBox(height: 14),
               TextField(controller: nameC, decoration: InputDecoration(labelText: l.productsFieldName)),
               const SizedBox(height: 14),
-              TextField(
-                controller: priceC,
-                decoration: InputDecoration(labelText: l.productsFieldPrice, suffixText: MoneyConfig.symbol),
-                keyboardType: TextInputType.number,
-              ),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: purchasePriceC,
+                    decoration: InputDecoration(labelText: l.productsPurchasePrice, suffixText: MoneyConfig.symbol),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: priceC,
+                    decoration: InputDecoration(labelText: l.productsFieldPrice, suffixText: MoneyConfig.symbol),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ]),
               ..._extraPriceFields(extraCtrls),
               const SizedBox(height: 14),
               Container(
@@ -697,32 +796,50 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
             ElevatedButton(
               onPressed: () async {
+                final name = nameC.text.trim();
+                if (name.isEmpty) return;
+                final purchasePrice = Money.tengeToTiyin(double.tryParse(purchasePriceC.text) ?? 0);
                 final price = Money.tengeToTiyin(double.tryParse(priceC.text) ?? 0);
+                final extraPrices = _readExtraPrices(extraCtrls);
+                final ok = await _validatePrices(
+                  ctx,
+                  purchasePriceTiyin: purchasePrice,
+                  salePriceTiyin: price,
+                  extraPrices: extraPrices,
+                );
+                if (!ok || !ctx.mounted) return;
                 final newId = 'p-${DateTime.now().millisecondsSinceEpoch}';
-                await widget.api.createProduct({
-                  'id': newId,
-                  'name': nameC.text,
-                  'name_kz': nameKZ,
-                  'barcode_gtin': barcodeC.text,
-                  'ntin': ntin,
-                  'sale_unit': isWeighted ? 'kg' : 'pcs',
-                  'sale_price': price,
-                  'is_weighted': isWeighted,
-                  // Locked invariant: KZ retail uses 12% (standard) or 0%
-                  // (zero-rated) — never 10% or 20%. Standard VAT is the
-                  // default for new products; user can edit later for
-                  // zero-rated items via the edit dialog (P2).
-                  'vat_rate': AppConstants.vatRateStandard,
-                  'is_active': true,
-                  // device_id pulled from DeviceIdStore in pos-register's
-                  // boot path; for products created via the admin-style
-                  // dialog here we don't have a workstation context, so
-                  // 'local-001' is a placeholder until the products screen
-                  // gains real owner-flow wiring (P2). The server stamps
-                  // the actual creator from the JWT regardless.
-                  'device_id': 'local-001',
-                });
-                await store?.saveProductExtraPrices(newId, _readExtraPrices(extraCtrls));
+                if (repo != null) {
+                  await repo.create(
+                    id: newId,
+                    name: name,
+                    nameKz: nameKZ.isEmpty ? null : nameKZ,
+                    barcodeGtin: barcodeC.text.trim().isEmpty ? null : barcodeC.text.trim(),
+                    ntin: ntin.isEmpty ? null : ntin,
+                    purchaseUnit: isWeighted ? 'kg' : 'pcs',
+                    purchasePriceTiyin: purchasePrice,
+                    saleUnit: isWeighted ? 'kg' : 'pcs',
+                    salePriceTiyin: price,
+                    isWeighted: isWeighted,
+                    vatRate: MoneyConfig.effectiveVatRate,
+                  );
+                } else {
+                  await widget.api.createProduct({
+                    'id': newId,
+                    'name': name,
+                    'name_kz': nameKZ,
+                    'barcode_gtin': barcodeC.text,
+                    'ntin': ntin,
+                    'sale_unit': isWeighted ? 'kg' : 'pcs',
+                    'purchase_price': purchasePrice,
+                    'sale_price': price,
+                    'is_weighted': isWeighted,
+                    'vat_rate': AppConstants.vatRateStandard,
+                    'is_active': true,
+                    'device_id': 'local-001',
+                  });
+                }
+                await store?.saveProductExtraPrices(newId, extraPrices);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) await _load();
               },
@@ -732,9 +849,8 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
         ),
       ),
     ).whenComplete(() {
-      // See _showEditDialog: controllers must be disposed on every dialog
-      // exit path; otherwise each open leaks one + its listeners.
       nameC.dispose();
+      purchasePriceC.dispose();
       priceC.dispose();
       barcodeC.dispose();
       for (final c in extraCtrls.values) {
@@ -898,7 +1014,7 @@ class _ProductRow extends StatelessWidget {
           flex: 2,
           child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(
-              isWeighted ? '${Money.format(price)}/кг' : Money.format(price),
+              isWeighted ? '${Money.format(price)}/kg' : Money.format(price),
               style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w700, color: cs.primary),
               textAlign: TextAlign.right,
             ),

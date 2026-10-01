@@ -69,7 +69,7 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
             const SizedBox(height: 12),
             Row(children: [
               Text(
-                'Статус синхронизации',
+                'Sync Status',
                 style: Hifi.ui(size: 18, weight: FontWeight.w700, color: Hifi.chrome),
               ),
               const Spacer(),
@@ -82,7 +82,7 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                tooltip: 'Обновить',
+                tooltip: 'Refresh',
               ),
             ]),
             const Divider(height: 24),
@@ -95,16 +95,16 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
               _StatusRow(
                 icon: _snap!.online ? Icons.cloud_done : Icons.cloud_off,
                 iconColor: _snap!.online ? Hifi.success : Hifi.chromeOffline,
-                title: 'Связь',
+                title: 'Connection',
                 body: _snap!.online
-                    ? 'Сервер доступен'
-                    : 'Нет связи с сервером',
+                    ? 'Server reachable'
+                    : 'No connection to server',
               ),
               const SizedBox(height: 14),
               _StatusRow(
                 icon: Icons.cloud_download,
                 iconColor: _freshnessColor(_snap!.freshness.tier),
-                title: 'Мастер-данные',
+                title: 'Master Data',
                 body: _freshnessLabel(_snap!.freshness),
               ),
               const SizedBox(height: 14),
@@ -114,14 +114,14 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
                   _snap!.outboxPending,
                   _snap!.outboxFailed,
                 ),
-                title: 'Очередь на отправку',
+                title: 'Outbox Queue',
                 body: _outboxLabel(_snap!.outboxPending, _snap!.outboxFailed),
               ),
               const SizedBox(height: 14),
               _StatusRow(
                 icon: Icons.access_time,
                 iconColor: const Color(0xFF837B6D),
-                title: 'Обновлено',
+                title: 'Last Checked',
                 body: _updatedAgo(_snap!.checkedAt),
               ),
             ],
@@ -131,7 +131,7 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(
-                  'Закрыть',
+                  'Close',
                   style: Hifi.ui(size: 14, weight: FontWeight.w600, color: Hifi.chrome),
                 ),
               ),
@@ -158,13 +158,13 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
   String _freshnessLabel(StockFreshnessSnapshot f) {
     switch (f.tier) {
       case StockFreshness.fresh:
-        return 'Свежие · обновлено ${_fmtAge(f.age)} назад';
+        return 'Fresh · updated ${_fmtAge(f.age)} ago';
       case StockFreshness.stale:
-        return 'Устаревают · ${_fmtAge(f.age)} без обновления';
+        return 'Getting stale · ${_fmtAge(f.age)} without update';
       case StockFreshness.outdated:
-        return 'Устарели · ${_fmtAge(f.age)} без обновления';
+        return 'Outdated · ${_fmtAge(f.age)} without update';
       case StockFreshness.unknown:
-        return 'Ещё не синхронизированы';
+        return 'Not synced yet';
     }
   }
 
@@ -182,10 +182,10 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
   }
 
   String _outboxLabel(int pending, int failed) {
-    if (pending == 0 && failed == 0) return 'Очередь пуста';
+    if (pending == 0 && failed == 0) return 'Queue is empty';
     final parts = <String>[];
-    if (pending > 0) parts.add('$pending ожидают');
-    if (failed > 0) parts.add('$failed с ошибкой (повтор)');
+    if (pending > 0) parts.add('$pending pending');
+    if (failed > 0) parts.add('$failed failed (retrying)');
     return parts.join(' · ');
   }
 
@@ -198,14 +198,14 @@ class _SyncStatusSheetState extends State<SyncStatusSheet> {
 
   String _updatedAgo(DateTime ts) {
     final age = DateTime.now().toUtc().difference(ts.toUtc());
-    return '${_fmtAge(age)} назад';
+    return '${_fmtAge(age)} ago';
   }
 
   String _fmtAge(Duration d) {
-    if (d.inSeconds < 1) return 'только что';
-    if (d.inMinutes < 1) return '${d.inSeconds} с';
-    if (d.inHours < 1) return '${d.inMinutes} мин';
-    return '${d.inHours} ч';
+    if (d.inSeconds < 1) return 'just now';
+    if (d.inMinutes < 1) return '${d.inSeconds} s';
+    if (d.inHours < 1) return '${d.inMinutes} min';
+    return '${d.inHours} hr';
   }
 }
 

@@ -1,21 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
+import '../../../data/database.dart';
+import '../../../data/repositories/receipt_repository.dart';
 import '../../../services/api_client.dart';
 
 /// X-report bottom sheet — non-destructive shift snapshot. Aggregates
-/// receipts returned by [ApiClient.listReceiptsByShift] and shows totals by
-/// tender, discount, returns, and receipt count. Printing the sheet is left
-/// to the OS share flow (out of scope here); the numbers on screen match
-/// what the fiscal X-report would emit.
+/// receipts from local [ReceiptRepository] (when available) or falls back to
+/// [ApiClient.listReceiptsByShift] and shows totals by tender, discount,
+/// returns, and receipt count.
 class XReportSheet extends StatelessWidget {
   final ApiClient api;
   final String shiftId;
   final String cashierName;
-  const XReportSheet({super.key, required this.api, required this.shiftId, required this.cashierName});
+  final ReceiptRepository? receiptRepository;
 
-  static Future<void> show(BuildContext context, {required ApiClient api, required String shiftId, required String cashierName}) {
+  const XReportSheet({
+    super.key,
+    required this.api,
+    required this.shiftId,
+    required this.cashierName,
+    this.receiptRepository,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    required ApiClient api,
+    required String shiftId,
+    required String cashierName,
+    ReceiptRepository? receiptRepository,
+  }) {
+    ReceiptRepository? repo = receiptRepository;
+    if (repo == null) {
+      try {
+        repo = context.read<ReceiptRepository?>();
+      } catch (_) {
+        repo = null;
+      }
+    }
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
@@ -23,15 +47,62 @@ class XReportSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.85,
-        child: XReportSheet(api: api, shiftId: shiftId, cashierName: cashierName),
+        child: XReportSheet(
+          api: api,
+          shiftId: shiftId,
+          cashierName: cashierName,
+          receiptRepository: repo,
+        ),
       ),
     );
+  }
+
+  static String _paymentTypeFor(ReceiptRow r) {
+    if (r.debtAmountTiyin > 0) return 'debt';
+    final hasCash = r.cashAmountTiyin > 0;
+    final hasCard = r.cardAmountTiyin > 0;
+    final hasQr = r.qrAmountTiyin > 0;
+    final count = (hasCash ? 1 : 0) + (hasCard ? 1 : 0) + (hasQr ? 1 : 0);
+    if (count > 1) return 'mixed';
+    if (hasCard) return 'card';
+    if (hasQr) return 'qr';
+    return 'cash';
+  }
+
+  Future<Map<String, dynamic>> _loadReceipts(BuildContext context) async {
+    ReceiptRepository? repo = receiptRepository;
+    if (repo == null) {
+      try {
+        repo = context.read<ReceiptRepository?>();
+      } catch (_) {
+        repo = null;
+      }
+    }
+    if (repo != null) {
+      final rows = await repo.recentInShift(shiftId, limit: 500);
+      return {
+        'receipts': rows
+            .map((r) => <String, dynamic>{
+                  'ID': r.id,
+                  'ReceiptNumber': r.receiptNumber,
+                  'Type': r.isReturn ? 'return' : 'sale',
+                  'Total': r.totalAmountTiyin,
+                  'CashAmount': r.cashAmountTiyin,
+                  'CardAmount': r.cardAmountTiyin,
+                  'QRAmount': r.qrAmountTiyin,
+                  'Discount': r.discountAmountTiyin,
+                  'PaymentType': _paymentTypeFor(r),
+                })
+            .toList(),
+      };
+    }
+    return api.listReceiptsByShift(shiftId);
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
-      future: api.listReceiptsByShift(shiftId),
+      future: _loadReceipts(context),
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
@@ -39,7 +110,7 @@ class XReportSheet extends StatelessWidget {
         if (snap.hasError) {
           return Padding(
             padding: const EdgeInsets.all(24),
-            child: Center(child: Text('Ошибка: ${snap.error}', style: Hifi.ui(size: 13, color: Hifi.danger))),
+            child: Center(child: Text('Error: ${snap.error}', style: Hifi.ui(size: 13, color: Hifi.danger))),
           );
         }
         final receipts = (snap.data?['receipts'] as List<dynamic>? ?? const <dynamic>[])
@@ -85,13 +156,13 @@ class _Body extends StatelessWidget {
         Row(children: [
           const Icon(Icons.receipt_long, color: Hifi.chrome),
           const SizedBox(width: 8),
-          Text('X-отчёт · текущий срез смены',
+          Text('X-Report · Current Shift Snapshot',
               style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
           const Spacer(),
           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
         ]),
         const SizedBox(height: 4),
-        Text('Кассир: $cashierName · смена не закрывается',
+        Text('Cashier: $cashierName · shift stays open',
             style: Hifi.ui(size: 12, color: const Color(0xFF837B6D))),
         const SizedBox(height: 16),
         GridView.count(
@@ -102,32 +173,32 @@ class _Body extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            _kpi('ЧЕКОВ', '${receipts.length - returnsCount}', Hifi.chrome),
-            _kpi('ВОЗВРАТОВ', '$returnsCount', Hifi.danger),
-            _kpi('ОБОРОТ', Money.formatTenge(turnover), Hifi.chrome),
-            _kpi('НАЛИЧНЫЕ', Money.formatTenge(cash), Hifi.success),
-            _kpi('КАРТА', Money.formatTenge(card), Hifi.success),
-            _kpi('QR / KASPI', Money.formatTenge(qr), Hifi.success),
-            _kpi('СКИДКИ', '−${Money.formatTenge(discount)}', Hifi.warn),
-            _kpi('ВОЗВРАТЫ', '−${Money.formatTenge(returnsTotal)}', Hifi.danger),
-            _kpi('НЕТТО', Money.formatTenge(turnover - returnsTotal), Hifi.chrome),
+            _kpi('RECEIPTS', '${receipts.length - returnsCount}', Hifi.chrome),
+            _kpi('RETURNS', '$returnsCount', Hifi.danger),
+            _kpi('TURNOVER', Money.formatTenge(turnover), Hifi.chrome),
+            _kpi('CASH', Money.formatTenge(cash), Hifi.success),
+            _kpi('CARD', Money.formatTenge(card), Hifi.success),
+            _kpi('QR / MOBILE', Money.formatTenge(qr), Hifi.success),
+            _kpi('DISCOUNTS', '−${Money.formatTenge(discount)}', Hifi.warn),
+            _kpi('RETURN AMT', '−${Money.formatTenge(returnsTotal)}', Hifi.danger),
+            _kpi('NET SALES', Money.formatTenge(turnover - returnsTotal), Hifi.chrome),
           ],
         ),
         const SizedBox(height: 16),
         Expanded(child: _list(receipts)),
         const SizedBox(height: 8),
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Закрыть')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
           const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Печать X-отчёта — требуется драйвер чекового принтера')),
+                const SnackBar(content: Text('Printing X-Report requires a configured receipt printer')),
               );
             },
             style: FilledButton.styleFrom(backgroundColor: Hifi.chrome),
             icon: const Icon(Icons.print),
-            label: const Text('Печать'),
+            label: const Text('Print'),
           ),
         ]),
       ]),
@@ -152,7 +223,7 @@ class _Body extends StatelessWidget {
 
   Widget _list(List<Map<String, dynamic>> receipts) {
     if (receipts.isEmpty) {
-      return Center(child: Text('Операций за смену ещё нет', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))));
+      return Center(child: Text('No transactions in this shift yet', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))));
     }
     return Container(
       decoration: BoxDecoration(border: Border.all(color: Hifi.border), borderRadius: BorderRadius.circular(4)),
@@ -171,7 +242,7 @@ class _Body extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Hifi.divider))),
               child: Row(children: [
-                Expanded(child: Text('№$no · ${isRefund ? "Возврат" : "Продажа"}', style: Hifi.ui(size: 12))),
+                Expanded(child: Text('#$no · ${isRefund ? "Return" : "Sale"}', style: Hifi.ui(size: 12))),
                 SizedBox(width: 100, child: Text(tender, style: Hifi.ui(size: 12, color: const Color(0xFF837B6D)))),
                 SizedBox(
                   width: 120,
