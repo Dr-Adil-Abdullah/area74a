@@ -57,7 +57,7 @@ class _ImportScreenState extends State<ImportScreen> {
     if (!file.existsSync()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Файл не найден')),
+          const SnackBar(content: Text('File not found')),
         );
       }
       return;
@@ -85,17 +85,17 @@ class _ImportScreenState extends State<ImportScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Путь к Excel-файлу'),
+        title: const Text('Excel File Path'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(hintText: '/path/to/file.xlsx'),
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Загрузить'),
+            child: const Text('Upload'),
           ),
         ],
       ),

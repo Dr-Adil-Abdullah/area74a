@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/money_config.dart';
 import '../../../core/utils/price_book.dart';
+import '../../../data/repositories/category_repository.dart';
 import '../../../services/api_client.dart';
+import '../../../services/products/product_catalog_service.dart';
 import '../../../services/sales/sales_service.dart';
 import '../models/cart_item.dart';
 
@@ -286,21 +288,34 @@ class SalesState {
 // gave us before.
 
 class SalesController extends Notifier<SalesState> {
-  late final ApiClient _api;
-  late final SalesService? _salesService;
+  late ApiClient _api;
+  SalesService? _salesService;
+  ProductCatalogService? _catalogService;
+  CategoryRepository? _categoryRepo;
+  String? _tenantId;
 
   @override
   SalesState build() {
     // ProviderScope.overrides supplies these in main.dart; tests can override
     // with mocks via container.overrides. The provider definitions below are
     // the dependency seam.
-    _api = ref.read(salesApiClientProvider);
-    _salesService = ref.read(salesServiceProvider);
+    _api = ref.watch(salesApiClientProvider);
+    _salesService = ref.watch(salesServiceProvider);
+    _catalogService = ref.watch(salesCatalogServiceProvider);
+    _categoryRepo = ref.watch(salesCategoryRepositoryProvider);
+    _tenantId = ref.watch(salesTenantIdProvider);
     return const SalesState();
   }
 
   void addToCart(CartItem item) {
-    final items = List<CartItem>.from(state.items)..add(item);
+    final retail = item.effectiveRetailPrice;
+    final tier = PriceBook.tierForContactType(state.customerType);
+    final resolvedPrice = PriceBook.resolve(item.productId, retail, tier: tier);
+    final pricedItem = item.copyWith(
+      basePrice: resolvedPrice,
+      retailPrice: retail,
+    );
+    final items = List<CartItem>.from(state.items)..add(pricedItem);
     state = state.copyWith(
       items: items,
       searchResults: [],
@@ -410,8 +425,20 @@ class SalesController extends Notifier<SalesState> {
   }
 
   void setCustomerType(String name) {
-    MoneyConfig.apply(priceTier: PriceBook.tierForContactType(name));
-    state = state.copyWith(customerType: name);
+    final tier = PriceBook.tierForContactType(name);
+    MoneyConfig.apply(priceTier: tier);
+    final updatedItems = state.items.map((item) {
+      final retail = item.effectiveRetailPrice;
+      final newPrice = PriceBook.resolve(item.productId, retail, tier: tier);
+      return item.copyWith(
+        basePrice: newPrice,
+        retailPrice: retail,
+      );
+    }).toList();
+    state = state.copyWith(
+      customerType: name,
+      items: updatedItems,
+    );
   }
 
   void clearNktResults() {
@@ -444,6 +471,18 @@ class SalesController extends Notifier<SalesState> {
 
   Future<void> loadCategories() async {
     try {
+      if (_categoryRepo != null && _tenantId != null && _tenantId!.isNotEmpty) {
+        final rows = await _categoryRepo!.listForTenant(_tenantId!);
+        final cats = rows
+            .map((r) => <String, dynamic>{
+                  'ID': r.id,
+                  'Name': r.name,
+                  'SortOrder': r.sortOrder,
+                })
+            .toList();
+        state = state.copyWith(categories: cats);
+        return;
+      }
       final resp = await _api.listCategories();
       final cats = (resp['categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       state = state.copyWith(categories: cats);
@@ -481,6 +520,13 @@ class SalesController extends Notifier<SalesState> {
 
     state = state.copyWith(searchStatus: const Searching(), clearNkt: true, lastQuery: query);
     try {
+      if (_catalogService != null) {
+        final entries = await _catalogService!.search(query);
+        final products = entries.map((e) => e.toLegacyMap()).toList();
+        state = state.copyWith(searchResults: products, searchStatus: const SearchIdle());
+        return;
+      }
+
       final response = await _api.searchProducts(query);
       final products = (response['products'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       state = state.copyWith(searchResults: products, searchStatus: const SearchIdle());
@@ -511,13 +557,38 @@ class SalesController extends Notifier<SalesState> {
 
   Future<void> scanBarcode(String barcode) async {
     try {
+      if (_catalogService != null) {
+        final entry = await _catalogService!.findByBarcode(barcode);
+        if (entry != null) {
+          final item = CartItem(
+            productId: entry.id,
+            name: entry.name,
+            ntin: entry.ntin,
+            unit: entry.saleUnit,
+            basePrice: entry.salePriceTiyin,
+            retailPrice: entry.salePriceTiyin,
+            isWeighted: entry.isWeighted,
+            vatRate: MoneyConfig.effectiveVatRate,
+          );
+          addToCart(item);
+        } else {
+          state = state.copyWith(
+            searchStatus: const SearchIdle(),
+            error: 'Товар не найден',
+          );
+        }
+        return;
+      }
+
       final response = await _api.getProductByBarcode(barcode);
+      final retailPrice = (response['SalePrice'] as num).toInt();
       final item = CartItem(
         productId: response['ID'] as String,
         name: response['Name'] as String,
         ntin: response['NTIN'] as String?,
         unit: response['SaleUnit'] as String,
-        basePrice: (response['SalePrice'] as num).toInt(),
+        basePrice: retailPrice,
+        retailPrice: retailPrice,
         isWeighted: response['IsWeighted'] as bool? ?? false,
         vatRate: MoneyConfig.effectiveVatRate,
       );
@@ -696,6 +767,12 @@ final salesApiClientProvider = Provider<ApiClient>((ref) {
 });
 
 final salesServiceProvider = Provider<SalesService?>((ref) => null);
+
+final salesCatalogServiceProvider = Provider<ProductCatalogService?>((ref) => null);
+
+final salesCategoryRepositoryProvider = Provider<CategoryRepository?>((ref) => null);
+
+final salesTenantIdProvider = Provider<String?>((ref) => null);
 
 final salesControllerProvider =
     NotifierProvider<SalesController, SalesState>(SalesController.new);

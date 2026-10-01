@@ -22,7 +22,7 @@ class LocaleStore {
             );
 
   static const _key = 'pos.locale.v1';
-  static const _supported = {'ru', 'kk'};
+  static const _supported = {'en', 'ru', 'kk'};
 
   final FlutterSecureStorage _storage;
 

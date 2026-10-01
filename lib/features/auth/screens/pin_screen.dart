@@ -78,7 +78,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
             // workstationId is a UUID v4; surface only the leading 8 chars
             // so operators can disambiguate registers in the same store
             // without displaying the full GUID.
-            storeLabel: 'Терминал ${ws.workstationId.length >= 8 ? ws.workstationId.substring(0, 8) : ws.workstationId}',
+            storeLabel: 'Terminal ${ws.workstationId.length >= 8 ? ws.workstationId.substring(0, 8) : ws.workstationId}',
           ),
         Expanded(
           child: Builder(builder: (context) {
@@ -211,7 +211,7 @@ class _LiveClockState extends State<_LiveClock> {
   @override
   Widget build(BuildContext context) {
     final time = '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
-    final months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final date = '${_now.day} ${months[_now.month - 1]} ${_now.year}';
 
     return Column(
@@ -485,7 +485,7 @@ class _ProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Смена с $shiftTime',
+                  'Shift since $shiftTime',
                   style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF226E47)),
                 ),
               ]),
@@ -1107,7 +1107,7 @@ class _FirstRunSetup extends ConsumerStatefulWidget {
 }
 
 class _FirstRunSetupState extends ConsumerState<_FirstRunSetup> {
-  final _nameController = TextEditingController(text: 'Владелец');
+  final _nameController = TextEditingController(text: 'Owner');
   final _pinController = TextEditingController();
   final _confirmController = TextEditingController();
 

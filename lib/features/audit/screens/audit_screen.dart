@@ -129,11 +129,11 @@ class _AuditRow extends StatelessWidget {
           Expanded(child: Text(_actionLabel(action, context), style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 16))),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _DetailLine('Время', _formatDate(createdAt).replaceAll('\n', ' ')),
+          _DetailLine('Time', _formatDate(createdAt).replaceAll('\n', ' ')),
           const SizedBox(height: 8),
-          _DetailLine('Кассир', cashierName),
+          _DetailLine('Cashier', cashierName),
           const SizedBox(height: 8),
-          _DetailLine('Объект', '$entityType ($entityId)'),
+          _DetailLine('Entity', '$entityType ($entityId)'),
           if (details.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(

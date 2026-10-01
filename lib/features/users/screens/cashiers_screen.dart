@@ -1,12 +1,21 @@
+import 'package:bcrypt/bcrypt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
+import 'package:provider/provider.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/repositories/cashier_repository.dart';
 import '../../../services/api_client.dart';
 
 class CashiersScreen extends StatefulWidget {
   final ApiClient api;
-  const CashiersScreen({super.key, required this.api});
+  final CashierRepository? cashierRepository;
+
+  const CashiersScreen({
+    super.key,
+    required this.api,
+    this.cashierRepository,
+  });
 
   @override
   State<CashiersScreen> createState() => _CashiersScreenState();
@@ -15,6 +24,15 @@ class CashiersScreen extends StatefulWidget {
 class _CashiersScreenState extends State<CashiersScreen> {
   List<Map<String, dynamic>> _cashiers = [];
   bool _loading = true;
+
+  CashierRepository? _resolveCashierRepo() {
+    if (widget.cashierRepository != null) return widget.cashierRepository;
+    try {
+      return context.read<CashierRepository?>();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -25,6 +43,24 @@ class _CashiersScreenState extends State<CashiersScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      final repo = _resolveCashierRepo();
+      if (repo != null) {
+        final rows = await repo.all(includeInactive: false);
+        setState(() {
+          _cashiers = rows
+              .map((r) => <String, dynamic>{
+                    'ID': r.id,
+                    'Name': r.name,
+                    'Login': r.login ?? '',
+                    'Role': r.role,
+                    'IsActive': r.isActive,
+                  })
+              .toList();
+          _loading = false;
+        });
+        return;
+      }
+
       final resp = await widget.api.listCashiers();
       setState(() {
         _cashiers = (resp['cashiers'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -34,7 +70,7 @@ class _CashiersScreenState extends State<CashiersScreen> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка загрузки: ${e is ApiException ? "Сервер недоступен" : "Нет связи"}')),
+          SnackBar(content: Text('Failed to load cashiers: ${e is ApiException ? "Server unavailable" : "Offline"}')),
         );
       }
     }
@@ -124,6 +160,7 @@ class _CashiersScreenState extends State<CashiersScreen> {
                               index: i,
                               isLast: i == _cashiers.length - 1,
                               api: widget.api,
+                              cashierRepository: _resolveCashierRepo(),
                               onRefresh: _load,
                             ),
                             childCount: _cashiers.length,
@@ -230,13 +267,26 @@ class _CashiersScreenState extends State<CashiersScreen> {
                       }
                       setDialogState(() => submitting = true);
                       try {
-                        await widget.api.createCashier(name: name, pin: pinC.text, role: role);
+                        final repo = _resolveCashierRepo();
+                        if (repo != null) {
+                          final pinHash = BCrypt.hashpw(pinC.text, BCrypt.gensalt(logRounds: 10));
+                          final login = name.toLowerCase().replaceAll(RegExp(r'\s+'), '.');
+                          await repo.create(
+                            storeId: 'store-standalone',
+                            name: name,
+                            login: login,
+                            pinHash: pinHash,
+                            role: role,
+                          );
+                        } else {
+                          await widget.api.createCashier(name: name, pin: pinC.text, role: role);
+                        }
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (mounted) await _load();
                       } on Exception catch (e) {
                         if (ctx.mounted) setDialogState(() => submitting = false);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       }
                     },
@@ -286,6 +336,7 @@ class _CashierRow extends StatelessWidget {
   final int index;
   final bool isLast;
   final ApiClient api;
+  final CashierRepository? cashierRepository;
   final VoidCallback onRefresh;
 
   const _CashierRow({
@@ -293,6 +344,7 @@ class _CashierRow extends StatelessWidget {
     required this.index,
     required this.isLast,
     required this.api,
+    this.cashierRepository,
     required this.onRefresh,
   });
 
@@ -470,7 +522,12 @@ class _CashierRow extends StatelessWidget {
                       }
                       setDialogState(() => submitting = true);
                       try {
-                        await api.resetCashierPin(cashierId, pinC.text);
+                        if (cashierRepository != null) {
+                          final pinHash = BCrypt.hashpw(pinC.text, BCrypt.gensalt(logRounds: 10));
+                          await cashierRepository!.resetPinHash(cashierId, pinHash);
+                        } else {
+                          await api.resetCashierPin(cashierId, pinC.text);
+                        }
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -484,7 +541,7 @@ class _CashierRow extends StatelessWidget {
                       } on Exception catch (e) {
                         if (ctx.mounted) setDialogState(() => submitting = false);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       }
                     },
@@ -533,7 +590,15 @@ class _CashierRow extends StatelessWidget {
                       if (nameC.text.trim().isEmpty) return;
                       setDialogState(() => submitting = true);
                       try {
-                        await api.updateCashier(cashierId, name: nameC.text.trim(), role: role);
+                        if (cashierRepository != null) {
+                          await cashierRepository!.update(
+                            id: cashierId,
+                            name: nameC.text.trim(),
+                            role: role,
+                          );
+                        } else {
+                          await api.updateCashier(cashierId, name: nameC.text.trim(), role: role);
+                        }
                         if (ctx.mounted) Navigator.pop(ctx);
                         onRefresh();
                       } on Exception catch (e) {
@@ -581,7 +646,11 @@ class _CashierRow extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               try {
-                await api.deactivateCashier(cashierId);
+                if (cashierRepository != null) {
+                  await cashierRepository!.update(id: cashierId, isActive: false);
+                } else {
+                  await api.deactivateCashier(cashierId);
+                }
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(

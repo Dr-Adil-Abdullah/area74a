@@ -1,32 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
+import '../../../data/repositories/shift_repository.dart';
 import '../../../services/api_client.dart';
+import 'shift_close_screen.dart';
 
 /// Hi-fi shift-open screen — section 02 in the design handoff.
-///
-/// Layout:
-///   [navy chrome]
-///   ┌ left ─────────────────────── ┬ right (340 navy) ┐
-///   │ header: "Открытие смены №43" │ Итого в кассе    │
-///   │ denomination table           │  48px mono total │
-///   │   20000 · stepper · total    │                  │
-///   │   10000 · stepper · total    │ delta card       │
-///   │   ...                        │                  │
-///   │ totals: ожидаемо / δ / total │ [Открыть смену]  │
-///   │                              │ [Отложить]       │
-///   └──────────────────────────────┴──────────────────┘
 class ShiftScreen extends StatefulWidget {
   final ApiClient api;
   final String cashierId;
   final String cashierName;
+  final String? workstationId;
+  final ShiftRepository? shiftRepository;
   final VoidCallback? onShiftChanged;
+  final VoidCallback? onOpenPos;
+
   const ShiftScreen({
     super.key,
     required this.api,
     required this.cashierId,
     required this.cashierName,
+    this.workstationId,
+    this.shiftRepository,
     this.onShiftChanged,
+    this.onOpenPos,
   });
 
   @override
@@ -34,7 +32,7 @@ class ShiftScreen extends StatefulWidget {
 }
 
 class _ShiftScreenState extends State<ShiftScreen> {
-  static const denoms = [20000, 10000, 5000, 2000, 1000, 500, 200, 100];
+  static const denoms = [5000, 1000, 500, 100, 50, 20, 10];
 
   Map<String, dynamic>? _shift;
   bool _loading = true;
@@ -43,7 +41,16 @@ class _ShiftScreenState extends State<ShiftScreen> {
   int _expected = 0;
   String _shiftNumber = '—';
 
-  int get _total => _counts.entries.fold(0, (s, e) => s + e.key * e.value);
+  int get _totalTiyin => _counts.entries.fold(0, (s, e) => s + e.key * 100 * e.value);
+
+  ShiftRepository? _resolveShiftRepo() {
+    if (widget.shiftRepository != null) return widget.shiftRepository;
+    try {
+      return context.read<ShiftRepository?>();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -54,6 +61,38 @@ class _ShiftScreenState extends State<ShiftScreen> {
   Future<void> _loadShift() async {
     setState(() => _loading = true);
     try {
+      final repo = _resolveShiftRepo();
+      if (repo != null) {
+        final openRow = await repo.findLatestOpen(
+          userId: widget.cashierId.isEmpty ? null : widget.cashierId,
+          workstationId: widget.workstationId,
+        );
+        if (!mounted) return;
+        if (openRow != null) {
+          final expectedCash = openRow.cashStartTiyin +
+              openRow.totalCashTiyin +
+              openRow.totalDepositsTiyin -
+              openRow.totalWithdrawalsTiyin -
+              openRow.totalReturnsTiyin;
+          setState(() {
+            _shift = {
+              'ID': openRow.id,
+              'ShiftNumber': openRow.shiftNumber,
+              'ExpectedCash': expectedCash,
+            };
+            _shiftNumber = openRow.shiftNumber.toString();
+            _expected = expectedCash;
+            _loading = false;
+          });
+        } else {
+          setState(() {
+            _shift = null;
+            _loading = false;
+          });
+        }
+        return;
+      }
+
       final resp = await widget.api.getCurrentShift(widget.cashierId);
       setState(() {
         _shift = resp;
@@ -77,14 +116,29 @@ class _ShiftScreenState extends State<ShiftScreen> {
     if (_submitting) return;
     setState(() => _submitting = true);
     try {
-      await widget.api.openShift(cashierId: widget.cashierId, cashStart: _total);
+      final repo = _resolveShiftRepo();
+      if (repo != null) {
+        final wsId = (widget.workstationId != null && widget.workstationId!.isNotEmpty)
+            ? widget.workstationId!
+            : 'ws-standalone';
+        final userId = widget.cashierId.isEmpty ? 'owner' : widget.cashierId;
+        final nextNum = await repo.nextShiftNumber(wsId);
+        await repo.open(
+          workstationId: wsId,
+          userId: userId,
+          shiftNumber: nextNum,
+          cashStartTiyin: _totalTiyin,
+        );
+      } else {
+        await widget.api.openShift(cashierId: widget.cashierId, cashStart: _totalTiyin);
+      }
       if (mounted) {
         await _loadShift();
         widget.onShiftChanged?.call();
       }
     } on Exception catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -113,9 +167,9 @@ class _ShiftScreenState extends State<ShiftScreen> {
           child: Column(children: [
             HifiSectionHeader(
               icon: '💼',
-              title: 'Открытие смены',
-              subtitle: 'Пересчитайте наличные в денежном ящике',
-              trailing: 'Кассир: ${widget.cashierName}',
+              title: 'Open Shift',
+              subtitle: 'Count the cash in the drawer to start the shift',
+              trailing: 'Cashier: ${widget.cashierName}',
             ),
             const SizedBox(height: 10),
             Expanded(child: _denomTable()),
@@ -129,28 +183,52 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Widget _buildOpenedInfo(BuildContext context) {
+    final shiftId = _shift?['ID'] as String? ?? '';
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Icon(Icons.check_circle_outline, size: 72, color: Hifi.success),
           const SizedBox(height: 16),
-          Text('Смена №$_shiftNumber уже открыта', style: Hifi.ui(size: 20, weight: FontWeight.w700, color: Hifi.chrome)),
+          Text('Shift #$_shiftNumber is currently open', style: Hifi.ui(size: 20, weight: FontWeight.w700, color: Hifi.chrome)),
           const SizedBox(height: 8),
-          Text('Работайте на кассе, или закройте смену с Z-отчётом.',
+          Text('Ring up sales on POS, or close the shift with a Z-Report.',
               style: Hifi.ui(size: 13, color: const Color(0xFF837B6D))),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => Navigator.of(context).pushReplacementNamed('/pos'),
+            onPressed: () {
+              if (widget.onOpenPos != null) {
+                widget.onOpenPos!();
+              } else {
+                Navigator.of(context).maybePop();
+              }
+            },
             icon: const Icon(Icons.point_of_sale),
-            label: const Text('Открыть кассу'),
+            label: const Text('Go to POS'),
             style: FilledButton.styleFrom(backgroundColor: Hifi.chrome),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).pushNamed('/shift-close'),
+            onPressed: shiftId.isEmpty
+                ? null
+                : () async {
+                    final closed = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute<bool>(
+                        builder: (_) => ShiftCloseScreen(
+                          api: widget.api,
+                          shiftId: shiftId,
+                          cashierName: widget.cashierName,
+                          shiftRepository: _resolveShiftRepo(),
+                        ),
+                      ),
+                    );
+                    if (closed == true && mounted) {
+                      await _loadShift();
+                      widget.onShiftChanged?.call();
+                    }
+                  },
             icon: const Icon(Icons.lock_outline),
-            label: const Text('Закрыть смену + Z-отчёт'),
+            label: const Text('Close Shift + Z-Report'),
           ),
         ]),
       ),
@@ -175,9 +253,9 @@ class _ShiftScreenState extends State<ShiftScreen> {
               border: Border(bottom: BorderSide(color: Hifi.border)),
             ),
             child: Row(children: [
-              SizedBox(width: 120, child: Text('НОМИНАЛ', style: Hifi.ui(size: 11, weight: FontWeight.w600, color: const Color(0xFF645E52)))),
-              Expanded(child: Center(child: Text('КОЛИЧЕСТВО', style: Hifi.ui(size: 11, weight: FontWeight.w600, color: const Color(0xFF645E52))))),
-              SizedBox(width: 120, child: Text('СУММА', textAlign: TextAlign.right, style: Hifi.ui(size: 11, weight: FontWeight.w600, color: const Color(0xFF645E52)))),
+              SizedBox(width: 120, child: Text('DENOMINATION', style: Hifi.ui(size: 11, weight: FontWeight.w600, color: const Color(0xFF645E52)))),
+              Expanded(child: Center(child: Text('COUNT', style: Hifi.ui(size: 11, weight: FontWeight.w600, color: const Color(0xFF645E52))))),
+              SizedBox(width: 120, child: Text('AMOUNT', textAlign: TextAlign.right, style: Hifi.ui(size: 11, weight: FontWeight.w600, color: const Color(0xFF645E52)))),
             ]),
           ),
           Expanded(
@@ -220,18 +298,18 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Widget _deltaRow() {
-    final delta = _total - _expected;
+    final delta = _totalTiyin - _expected;
     final deltaColor = delta == 0 ? Hifi.success : delta > 0 ? Hifi.warn : Hifi.danger;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          Text('Ожидаемо: ', style: Hifi.ui(size: 13, color: const Color(0xFF837B6D))),
+          Text('Expected: ', style: Hifi.ui(size: 13, color: const Color(0xFF837B6D))),
           Text(Money.formatTenge(_expected), style: Hifi.mono(size: 13, color: const Color(0xFF837B6D))),
         ]),
         const SizedBox(height: 2),
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          Text('Расхождение: ', style: Hifi.ui(size: 13, weight: FontWeight.w600, color: deltaColor)),
+          Text('Difference: ', style: Hifi.ui(size: 13, weight: FontWeight.w600, color: deltaColor)),
           Text('${delta > 0 ? '+' : ''}${Money.formatTenge(delta)}', style: Hifi.mono(size: 13, weight: FontWeight.w600, color: deltaColor)),
         ]),
       ]),
@@ -239,18 +317,18 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Widget _rightPane(BuildContext context) {
-    final delta = _total - _expected;
+    final delta = _totalTiyin - _expected;
     final deltaColor = delta == 0 ? Hifi.chromeOnline : Hifi.chromeOffline;
     return Container(
       width: 340,
       color: Hifi.chrome,
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ИТОГО В КАССЕ',
+        Text('TOTAL IN DRAWER',
             style: Hifi.ui(size: 11, color: Colors.white.withValues(alpha: 0.7), weight: FontWeight.w600)
                 .copyWith(letterSpacing: 0.5)),
         const SizedBox(height: 8),
-        Text(Money.formatTenge(_total),
+        Text(Money.formatTenge(_totalTiyin),
             style: Hifi.mono(size: 48, weight: FontWeight.w800, color: Colors.white).copyWith(height: 1)),
         const SizedBox(height: 20),
         Container(
@@ -260,12 +338,12 @@ class _ShiftScreenState extends State<ShiftScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Ожидаемо по закрытию',
+            Text('Expected from last close',
                 style: Hifi.ui(size: 11, color: Colors.white.withValues(alpha: 0.7))),
             const SizedBox(height: 4),
             Text(Money.formatTenge(_expected), style: Hifi.mono(size: 15, color: Colors.white)),
             const SizedBox(height: 10),
-            Text('Расхождение',
+            Text('Difference',
                 style: Hifi.ui(size: 11, color: Colors.white.withValues(alpha: 0.7))),
             const SizedBox(height: 4),
             Text('${delta > 0 ? '+' : ''}${Money.formatTenge(delta)}',
@@ -285,7 +363,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
             ),
             child: _submitting
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text('Открыть смену', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
+                : Text('Open Shift', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
           ),
         ),
         const SizedBox(height: 8),
@@ -294,7 +372,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
           child: TextButton(
             onPressed: () => Navigator.maybePop(context),
             style: TextButton.styleFrom(foregroundColor: Colors.white.withValues(alpha: 0.7)),
-            child: const Text('Отложить'),
+            child: const Text('Cancel'),
           ),
         ),
       ]),

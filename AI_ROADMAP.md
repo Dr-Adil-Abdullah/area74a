@@ -2,12 +2,12 @@
 
 Statuses: ⬜ not started · 🟡 in progress · ✅ completed · ❌ cancelled (keep row) · ⏸️ paused · 🔄 needs rework
 
-Updated: 15 Sep 2026.
+Updated: 1 Oct 2026.
 
 ## Current
 
-**Phase 3 (Settings)** 🟡 — hub + store/currency/tax/discount + dictionaries on existing settings table.
-POS still uses old money format until a later wiring change. Flutter SDK still missing in sandbox.
+**Phase 3 (Settings) & Offline Core Wiring** ✅ — Settings hub, `Rs.` formatter (`MoneyConfig`), multi-tier `PriceBook` (`Customer`/`VIP`/`Doctor` live cart pricing), and offline Drift CRUD for Products, POS Search/Scan, Shifts/X-Report/Z-Report, and Cashiers are wired end-to-end.
+Next: English default locale (`app_en.arb`) and Phase 4/5 medical tables & medicine fields.
 
 ---
 
@@ -32,8 +32,8 @@ POS still uses old money format until a later wiring change. Flutter SDK still m
 | Copy icybeard tree into this repo (keep md + Apache NOTICE) | ✅ |
 | Force standalone boot; FeatureFlags.allDrift; never require API host | ✅ |
 | Confirm `flutter analyze` / `flutter test` on the untouched fork | ⏸️ no Flutter SDK in sandbox |
-| Add `app_en.arb`, default locale English | ⬜ |
-| PKR display helper `Rs. 1,234/-`, date `DD/MM/YYYY` | 🟡 constants PKR/paisa; formatter not yet |
+| Add `app_en.arb`, default locale English | ✅ `app_en.arb` + `AppLocalizationsEn` + default `'en'` |
+| PKR display helper `Rs. 1,234/-`, date `DD/MM/YYYY` | ✅ `MoneyConfig` + `Money.format` (`Rs. 1,234/-`) |
 | Window default 1280×800 min 1024×768 (`window_manager`, small change) | ✅ |
 | Branding strings: Pharmacy POS | ✅ |
 | Map DO-NOT-TOUCH to real files | ✅ (see AI_UNDERSTANDING) |
@@ -59,8 +59,8 @@ POS still uses old money format until a later wiring change. Flutter SDK still m
 | Product kinds (Pharmacy/Veterinary + add) | ✅ |
 | Discount basis (total vs profit) | ✅ setting only; POS not wired yet |
 | Alert / backup / printer **keys** persisted (behaviour later) | ⬜ |
-| Users & roles = reuse existing users feature | ⬜ |
-| Theme & language (English default) | ⬜ |
+| Users & roles = reuse existing users feature | ✅ offline `CashierRepository` wired |
+| Theme & language (English default) | ✅ English default (`'en'`) + `EN` / `RU` toggle |
 | Tests for v8 migration + dictionary repo | ⬜ |
 
 ## Phase 4 — Medical database
@@ -76,8 +76,8 @@ POS still uses old money format until a later wiring change. Flutter SDK still m
 | Task | Status |
 |---|---|
 | Extend products screen: generic, strength, dosage, company, MRP, doctor price | ⬜ |
-| Validation: doctor ≤ retail; warn purchase > retail | ⬜ |
-| Search by brand / generic / barcode | ⬜ |
+| Validation: doctor ≤ retail; warn purchase > retail | ✅ |
+| Search by brand / generic / barcode | 🟡 name + barcode wired offline in Drift; generic after schema v9 |
 
 ## Phase 6 — Purchase & supplier
 
@@ -92,8 +92,8 @@ POS still uses old money format until a later wiring change. Flutter SDK still m
 
 | Task | Status |
 |---|---|
-| Retail vs doctor on the medicine | ⬜ |
-| POS price_tier + optional doctor_id on receipt (small POS diff, approved separately) | ⬜ |
+| Retail vs doctor on the medicine | ✅ extra tiers (`VIP`, `Doctor`, etc.) on product add/edit |
+| POS price_tier + optional doctor_id on receipt (small POS diff, approved separately) | ✅ POS `Customer`/`VIP`/`Doctor` chips resolve & re-price cart live |
 
 ## Phase 8 — Expiry & alerts
 

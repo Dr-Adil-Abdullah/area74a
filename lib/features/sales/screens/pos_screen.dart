@@ -11,6 +11,7 @@ import '../../../core/theme/hifi.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/money_config.dart';
 import '../../../core/utils/price_book.dart';
+import '../../../data/repositories/shift_repository.dart';
 import '../../../services/api_client.dart';
 import '../../../services/sales/sales_service.dart';
 import '../controllers/sales_controller.dart';
@@ -19,6 +20,8 @@ import '../sales_guards.dart';
 import '../widgets/manager_override_dialog.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../clients/screens/debts_screen.dart';
+import '../../settings/pharmacy_settings_store.dart';
+import '../../settings/screens/pharmacy_settings_home.dart';
 import '../../settings/screens/settings_screen.dart';
 import 'payment_screen.dart';
 import '../widgets/x_report_sheet.dart';
@@ -41,7 +44,15 @@ class PosScreen extends StatelessWidget {
   final String? shiftId;
   final String? cashierId;
   final String role;
-  const PosScreen({super.key, this.shiftId, this.cashierId, this.role = 'cashier'});
+  final VoidCallback? onShiftChanged;
+
+  const PosScreen({
+    super.key,
+    this.shiftId,
+    this.cashierId,
+    this.role = 'cashier',
+    this.onShiftChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -71,8 +82,18 @@ class PosScreen extends StatelessWidget {
         body: LayoutBuilder(builder: (context, c) {
           final isTablet = c.maxWidth < 1024;
           return isTablet
-              ? _TabletLayout(shiftId: shiftId, cashierId: cashierId, role: role)
-              : _MonoblocLayout(shiftId: shiftId, cashierId: cashierId, role: role);
+              ? _TabletLayout(
+                  shiftId: shiftId,
+                  cashierId: cashierId,
+                  role: role,
+                  onShiftChanged: onShiftChanged,
+                )
+              : _MonoblocLayout(
+                  shiftId: shiftId,
+                  cashierId: cashierId,
+                  role: role,
+                  onShiftChanged: onShiftChanged,
+                );
         }),
       ),
     );
@@ -87,13 +108,19 @@ class _MonoblocLayout extends StatelessWidget {
   final String? shiftId;
   final String? cashierId;
   final String role;
-  const _MonoblocLayout({this.shiftId, this.cashierId, required this.role});
+  final VoidCallback? onShiftChanged;
+  const _MonoblocLayout({this.shiftId, this.cashierId, required this.role, this.onShiftChanged});
 
   @override
   Widget build(BuildContext context) {
     return Row(children: [
       Expanded(child: _CartPane(shiftId: shiftId, cashierId: cashierId, role: role)),
-      _CartActionPanel(shiftId: shiftId, cashierId: cashierId, role: role),
+      _CartActionPanel(
+        shiftId: shiftId,
+        cashierId: cashierId,
+        role: role,
+        onShiftChanged: onShiftChanged,
+      ),
     ]);
   }
 }
@@ -102,13 +129,19 @@ class _TabletLayout extends StatelessWidget {
   final String? shiftId;
   final String? cashierId;
   final String role;
-  const _TabletLayout({this.shiftId, this.cashierId, required this.role});
+  final VoidCallback? onShiftChanged;
+  const _TabletLayout({this.shiftId, this.cashierId, required this.role, this.onShiftChanged});
 
   @override
   Widget build(BuildContext context) {
     return Column(children: [
       Expanded(child: _CartPane(shiftId: shiftId, cashierId: cashierId, role: role)),
-      _TabletActionStrip(shiftId: shiftId, cashierId: cashierId, role: role),
+      _TabletActionStrip(
+        shiftId: shiftId,
+        cashierId: cashierId,
+        role: role,
+        onShiftChanged: onShiftChanged,
+      ),
     ]);
   }
 }
@@ -168,17 +201,29 @@ class _CartPaneState extends ConsumerState<_CartPane> {
   void _onSubmitted(String v) {
     final q = v.trim();
     if (q.isEmpty) return;
-    ref.read(salesControllerProvider.notifier).searchProduct(q);
+    final isBarcode = q.length >= 8 &&
+        q.length <= 14 &&
+        q.codeUnits.every((c) => c >= 48 && c <= 57);
+    if (isBarcode) {
+      ref.read(salesControllerProvider.notifier).scanBarcode(q);
+    } else {
+      ref.read(salesControllerProvider.notifier).searchProduct(q);
+    }
     _scanCtrl.clear();
     _scanFocus.requestFocus();
   }
 
   void _onChanged(String v) {
     _debounce?.cancel();
-    if (v.length < 3) return;
+    final q = v.trim();
+    if (q.isEmpty) {
+      ref.read(salesControllerProvider.notifier).searchProduct('');
+      return;
+    }
+    if (q.length < 2) return;
     _debounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted) return;
-      ref.read(salesControllerProvider.notifier).searchProduct(v);
+      ref.read(salesControllerProvider.notifier).searchProduct(q);
     });
   }
 
@@ -210,7 +255,7 @@ class _CartPaneState extends ConsumerState<_CartPane> {
           title: lastItem?.name ?? l.posScanPrompt,
           subtitle: lastItem == null
               ? l.posScanPromptHint
-              : '${lastItem.isWeighted ? "${lastItem.weightGrams}г" : "${lastItem.quantity.toStringAsFixed(0)} шт"} · ${Money.format(lastItem.basePrice)}${lastItem.isWeighted ? "/кг" : ""}',
+              : '${lastItem.isWeighted ? "${lastItem.weightGrams}g" : "${lastItem.quantity.toStringAsFixed(0)} pcs"} · ${Money.format(lastItem.basePrice)}${lastItem.isWeighted ? "/kg" : ""}',
           price: lastItem == null ? '—' : Money.format(lastItem.total),
           empty: lastItem == null,
         ),
@@ -246,19 +291,24 @@ class _SearchResultsOverlay extends ConsumerWidget {
   }
 
   Widget _row(BuildContext context, WidgetRef ref, Map<String, dynamic> p, {required bool last}) {
+    final id = p['ID'] as String? ?? '';
     final name = p['Name'] as String? ?? '';
-    final price = (p['SalePrice'] as num?)?.toInt() ?? 0;
+    final retailPrice = (p['SalePrice'] as num?)?.toInt() ?? 0;
+    final customerType = ref.watch(salesControllerProvider.select((s) => s.customerType));
+    final tier = PriceBook.tierForContactType(customerType);
+    final displayPrice = PriceBook.resolve(id, retailPrice, tier: tier);
     final unit = p['SaleUnit'] as String? ?? 'pcs';
     final isWeighted = p['IsWeighted'] as bool? ?? false;
     final ntin = p['NTIN'] as String?;
     return InkWell(
       onTap: () {
         ref.read(salesControllerProvider.notifier).addToCart(CartItem(
-              productId: p['ID'] as String,
+              productId: id,
               name: name,
               ntin: ntin,
               unit: unit,
-              basePrice: price,
+              basePrice: retailPrice,
+              retailPrice: retailPrice,
               isWeighted: isWeighted,
               vatRate: MoneyConfig.effectiveVatRate,
             ));
@@ -279,7 +329,7 @@ class _SearchResultsOverlay extends ConsumerWidget {
             child: Text(name, style: Hifi.ui(size: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           Text(
-            isWeighted ? '${Money.format(price)}/кг' : Money.format(price),
+            isWeighted ? '${Money.format(displayPrice)}/kg' : Money.format(displayPrice),
             style: Hifi.mono(size: 13, weight: FontWeight.w600, color: Hifi.chrome),
           ),
         ]),
@@ -345,10 +395,10 @@ class _CartTable extends StatelessWidget {
           border: Border(bottom: BorderSide(color: Hifi.border)),
         ),
         child: Row(children: [
-          Expanded(child: _h('Наименование', TextAlign.left)),
-          SizedBox(width: 120, child: _h('Кол-во', TextAlign.center)),
-          SizedBox(width: 90, child: _h('Цена', TextAlign.right)),
-          SizedBox(width: 100, child: _h('Итого', TextAlign.right)),
+          Expanded(child: _h('Item', TextAlign.left)),
+          SizedBox(width: 120, child: _h('Qty', TextAlign.center)),
+          SizedBox(width: 90, child: _h('Price', TextAlign.right)),
+          SizedBox(width: 100, child: _h('Total', TextAlign.right)),
           const SizedBox(width: 32),
         ]),
       );
@@ -374,7 +424,7 @@ class _CartRow extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        title: Text('Количество', style: Hifi.ui(size: 16, weight: FontWeight.w700)),
+        title: Text('Quantity', style: Hifi.ui(size: 16, weight: FontWeight.w700)),
         content: SizedBox(
           width: 260,
           child: TextField(
@@ -386,7 +436,7 @@ class _CartRow extends ConsumerWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               final q = double.tryParse(controller.text) ?? 0;
@@ -412,7 +462,7 @@ class _CartRow extends ConsumerWidget {
             Text(item.name, style: Hifi.ui(size: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
             Text(
-              '${Money.format(item.basePrice)}${item.isWeighted ? "/кг" : "/шт"}',
+              '${Money.format(item.basePrice)}${item.isWeighted ? "/kg" : "/pc"}',
               style: Hifi.mono(size: 10, color: const Color(0xFFA59C8B)),
             ),
           ]),
@@ -423,7 +473,7 @@ class _CartRow extends ConsumerWidget {
               ? Center(
                   child: GestureDetector(
                     onTap: () => _editQty(context, ref),
-                    child: Text('${item.weightGrams}г', style: Hifi.mono(size: 14, weight: FontWeight.w600)),
+                    child: Text('${item.weightGrams}g', style: Hifi.mono(size: 14, weight: FontWeight.w600)),
                   ),
                 )
               : Center(
@@ -479,7 +529,7 @@ class _PosTotals extends StatelessWidget {
       subtotal: Money.format(showTax && MoneyConfig.taxType == 'inclusive' ? net : subtotal),
       vat: showTax ? Money.format(vat) : null,
       vatLabel: MoneyConfig.taxLineLabel,
-      totalLabel: 'ИТОГО',
+      totalLabel: 'TOTAL',
       total: Money.format(state.payable),
     );
   }
@@ -493,7 +543,8 @@ class _CartActionPanel extends ConsumerWidget {
   final String? shiftId;
   final String? cashierId;
   final String role;
-  const _CartActionPanel({this.shiftId, this.cashierId, required this.role});
+  final VoidCallback? onShiftChanged;
+  const _CartActionPanel({this.shiftId, this.cashierId, required this.role, this.onShiftChanged});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -503,20 +554,20 @@ class _CartActionPanel extends ConsumerWidget {
     return ActionGridPanel(
       tiles: _buildTiles(context, ref, state),
       voidTile: ActionTile(
-        label: 'Отмена',
+        label: 'Clear',
         variant: HifiTileVariant.red,
         onTap: disabled ? null : sales.clearCart,
       ),
       discountTile: ActionTile(
-        label: 'Скидка',
+        label: 'Discount',
         hotkey: 'F7',
         variant: HifiTileVariant.yellow,
         onTap: disabled ? null : () => _openDiscountDialog(context, ref, state),
       ),
       payTile: ActionTile(
         label: disabled
-            ? 'ОПЛАТА'
-            : 'ОПЛАТА · ${Money.format(state.payable)}',
+            ? 'PAY'
+            : 'PAY · ${Money.format(state.payable)}',
         hotkey: 'F2',
         variant: HifiTileVariant.pay,
         onTap: disabled
@@ -531,38 +582,38 @@ class _CartActionPanel extends ConsumerWidget {
     final sales = ref.read(salesControllerProvider.notifier);
     return [
       ActionTile(
-        label: '＋ Новый',
+        label: '＋ New',
         hotkey: 'F4',
         variant: HifiTileVariant.green,
         onTap: sales.clearCart,
       ),
       ActionTile(
-        label: 'Отложить',
+        label: 'Hold',
         hotkey: 'F5',
         onTap: state.items.isEmpty ? null : sales.parkCart,
       ),
       ActionTile(
-        label: 'Открытые',
+        label: 'Held',
         hotkey: 'F6',
         onTap: state.parkedCarts.isEmpty ? null : () => _showParked(context, ref, state),
       ),
       ActionTile(
-        label: 'Поиск',
+        label: 'Search',
         hotkey: 'F3',
         onTap: () => _openSearch(context, ref),
       ),
       ActionTile(
-        label: 'Возврат',
+        label: 'Return',
         hotkey: 'F9',
         onTap: () => _openReturns(context),
       ),
       ActionTile(
-        label: 'Долги',
+        label: 'Credit',
         hotkey: 'F8',
         onTap: () => _openDebts(context),
       ),
-      ActionTile(label: l.posActionHistory, onTap: () => _todo(context, 'История чеков')),
-      ActionTile(label: l.posActionPrintReceipt, hotkey: 'F11', onTap: () => _todo(context, 'Печать копии')),
+      ActionTile(label: l.posActionHistory, onTap: () => _todo(context, 'Receipt History')),
+      ActionTile(label: l.posActionPrintReceipt, hotkey: 'F11', onTap: () => _todo(context, 'Print Copy')),
       ActionTile(
         label: l.posActionReportX,
         onTap: shiftId == null
@@ -571,15 +622,15 @@ class _CartActionPanel extends ConsumerWidget {
                   context,
                   api: context.read<ApiClient>(),
                   shiftId: shiftId!,
-                  cashierName: cashierId ?? 'Кассир',
+                  cashierName: cashierId ?? 'Cashier',
                 ),
       ),
       ActionTile(label: l.posActionReportZ, onTap: shiftId == null ? null : () => _openShiftClose(context)),
       ActionTile(label: l.posActionDeposit, onTap: shiftId == null ? null : () => _cashMove(context, deposit: true)),
       ActionTile(label: l.posActionWithdraw, onTap: shiftId == null ? null : () => _cashMove(context, deposit: false)),
-      ActionTile(label: l.posActionOpenDrawer, onTap: () => _todo(context, 'Открыть денежный ящик')),
+      ActionTile(label: l.posActionOpenDrawer, onTap: () => _todo(context, 'Open Cash Drawer')),
       ActionTile(label: l.navSettingsShort, onTap: () => _openSettings(context, ref)),
-      ActionTile(label: l.posActionGoodsCodes, onTap: () => _todo(context, 'Коды ТРУ')),
+      ActionTile(label: l.posActionGoodsCodes, onTap: () => _todo(context, 'Item Codes')),
       ActionTile(label: l.posActionLock, onTap: () => Navigator.of(context).popUntil((r) => r.isFirst)),
     ];
   }
@@ -596,16 +647,33 @@ class _CartActionPanel extends ConsumerWidget {
   /// `popUntil` clears any settings-tree pages so the navigator stack
   /// doesn't end up with stale routes covering the new home widget.
   void _openSettings(BuildContext context, WidgetRef ref) {
+    PharmacySettingsStore? pharmacyStore;
+    try {
+      pharmacyStore = context.read<PharmacySettingsStore?>();
+    } catch (_) {
+      pharmacyStore = null;
+    }
+    final api = context.read<ApiClient>();
+    void handleLogout() {
+      ref.read(authControllerProvider.notifier).logout();
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(
-          api: context.read<ApiClient>(),
-          role: role,
-          onLogout: () {
-            ref.read(authControllerProvider.notifier).logout();
-            Navigator.of(context).popUntil((r) => r.isFirst);
-          },
-        ),
+        builder: (_) => pharmacyStore != null
+            ? PharmacySettingsHome(
+                store: pharmacyStore,
+                api: api,
+                onLogout: handleLogout,
+                role: role,
+                showAppBar: true,
+              )
+            : SettingsScreen(
+                api: api,
+                role: role,
+                onLogout: handleLogout,
+              ),
       ),
     );
   }
@@ -684,10 +752,10 @@ class _CartActionPanel extends ConsumerWidget {
 
   static String _subtitleFor(List<dynamic> shortages) {
     final parts = shortages.map((s) {
-      final unit = s.isWeighted as bool ? 'г' : 'шт';
-      return '${s.productName} — ${s.requested}$unit при остатке ${s.onHand}$unit';
+      final unit = s.isWeighted as bool ? 'g' : 'pcs';
+      return '${s.productName} — ${s.requested}$unit requested (${s.onHand}$unit on hand)';
     }).join('; ');
-    return 'Продажа ниже остатка: $parts';
+    return 'Negative stock sale: $parts';
   }
 
   void _openDiscountDialog(BuildContext context, WidgetRef ref, SalesState state) {
@@ -696,7 +764,7 @@ class _CartActionPanel extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        title: Text('Скидка на чек', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
+        title: Text('Bill Discount', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -704,14 +772,14 @@ class _CartActionPanel extends ConsumerWidget {
           decoration: InputDecoration(suffixText: MoneyConfig.symbol, hintText: '0'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               final tenge = double.tryParse(controller.text) ?? 0;
               ref.read(salesControllerProvider.notifier).applyDiscount(Money.tengeToTiyin(tenge));
               Navigator.pop(ctx);
             },
-            child: const Text('Применить'),
+            child: const Text('Apply'),
           ),
         ],
       ),
@@ -726,7 +794,7 @@ class _CartActionPanel extends ConsumerWidget {
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(16),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Отложенные чеки', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
+          Text('Held Bills', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
           const SizedBox(height: 12),
           ...state.parkedCarts.asMap().entries.map((e) {
             final idx = e.key;
@@ -734,7 +802,7 @@ class _CartActionPanel extends ConsumerWidget {
             final time = '${cart.parkedAt.hour.toString().padLeft(2, '0')}:${cart.parkedAt.minute.toString().padLeft(2, '0')}';
             return ListTile(
               leading: const Icon(Icons.shopping_cart, color: Hifi.chrome),
-              title: Text('${cart.itemCount} позиций — ${Money.format(cart.total)}'),
+              title: Text('${cart.itemCount} items — ${Money.format(cart.total)}'),
               subtitle: Text(time),
               trailing: IconButton(
                 icon: const Icon(Icons.play_arrow),
@@ -756,12 +824,12 @@ class _CartActionPanel extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        title: Text('Поиск товара', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
+        title: Text('Search Product', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
         content: SizedBox(
           width: 320,
           child: HifiSearchField(
             controller: controller,
-            hint: 'Название / SKU / штрих-код',
+            hint: 'Medicine name / SKU / barcode',
             autofocus: true,
             onSubmitted: (v) {
               ref.read(salesControllerProvider.notifier).searchProduct(v);
@@ -776,7 +844,7 @@ class _CartActionPanel extends ConsumerWidget {
   void _openReturns(BuildContext context) {
     final api = context.read<ApiClient>();
     Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => ReturnsScreen(api: api, cashierName: cashierId ?? 'Кассир'),
+      builder: (_) => ReturnsScreen(api: api, cashierName: cashierId ?? 'Cashier'),
     ));
   }
 
@@ -787,12 +855,21 @@ class _CartActionPanel extends ConsumerWidget {
     ));
   }
 
-  void _openShiftClose(BuildContext context) {
+  Future<void> _openShiftClose(BuildContext context) async {
     if (shiftId == null) return;
     final api = context.read<ApiClient>();
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => ShiftCloseScreen(api: api, shiftId: shiftId!, cashierName: cashierId ?? 'Кассир'),
-    ));
+    final closed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ShiftCloseScreen(
+          api: api,
+          shiftId: shiftId!,
+          cashierName: cashierId ?? 'Cashier',
+        ),
+      ),
+    );
+    if (closed == true) {
+      onShiftChanged?.call();
+    }
   }
 
   Future<void> _cashMove(BuildContext context, {required bool deposit}) async {
@@ -805,7 +882,7 @@ class _CartActionPanel extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         title: Text(
-          deposit ? 'Внесение в кассу' : 'Изъятие из кассы',
+          deposit ? 'Cash In (Deposit)' : 'Cash Out (Withdrawal)',
           style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome),
         ),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -814,36 +891,43 @@ class _CartActionPanel extends ConsumerWidget {
             autofocus: true,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: 'Сумма',
+              labelText: 'Amount',
               suffixText: MoneyConfig.symbol,
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: noteCtrl,
-            decoration: const InputDecoration(labelText: 'Комментарий (необязательно)'),
+            decoration: const InputDecoration(labelText: 'Note (optional)'),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, double.tryParse(ctrl.text)),
             style: FilledButton.styleFrom(backgroundColor: Hifi.chrome),
-            child: Text(deposit ? 'Внести' : 'Изъять'),
+            child: Text(deposit ? 'Deposit' : 'Withdraw'),
           ),
         ],
       ),
     );
-    // Both controllers must be disposed regardless of dialog outcome.
-    // Doing it after the API call (rather than via .whenComplete on the
-    // dialog future) keeps `noteCtrl.text` readable for the api call
-    // below — but in this method noteCtrl isn't currently sent, so
-    // disposing immediately on close is fine. Using try/finally below.
     try {
       if (tenge == null || tenge <= 0 || !context.mounted) return;
       final tiyin = Money.tengeToTiyin(tenge);
+      ShiftRepository? shiftRepo;
       try {
-        if (deposit) {
+        shiftRepo = context.read<ShiftRepository?>();
+      } catch (_) {
+        shiftRepo = null;
+      }
+      try {
+        if (shiftRepo != null) {
+          await shiftRepo.recordCashMovement(
+            shiftId!,
+            amountTiyin: tiyin,
+            isDeposit: deposit,
+          );
+        } else if (deposit) {
           await api.shiftDeposit(shiftId!, tiyin);
         } else {
           await api.shiftWithdraw(shiftId!, tiyin);
@@ -851,14 +935,14 @@ class _CartActionPanel extends ConsumerWidget {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            '${deposit ? "Внесено" : "Изъято"}: ${Money.format(tiyin)}',
+            '${deposit ? "Deposited" : "Withdrawn"}: ${Money.format(tiyin)}',
           ),
           backgroundColor: PosColors.of(context).successFg,
         ));
       } on Exception catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e'), backgroundColor: PosColors.of(context).errorFg),
+          SnackBar(content: Text('Error: $e'), backgroundColor: PosColors.of(context).errorFg),
         );
       }
     } finally {
@@ -869,7 +953,7 @@ class _CartActionPanel extends ConsumerWidget {
 
   void _todo(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — в разработке'), duration: const Duration(seconds: 2)),
+      SnackBar(content: Text('$label — coming soon'), duration: const Duration(seconds: 2)),
     );
   }
 }
@@ -880,14 +964,20 @@ class _TabletActionStrip extends ConsumerWidget {
   final String? shiftId;
   final String? cashierId;
   final String role;
-  const _TabletActionStrip({this.shiftId, this.cashierId, required this.role});
+  final VoidCallback? onShiftChanged;
+  const _TabletActionStrip({this.shiftId, this.cashierId, required this.role, this.onShiftChanged});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(salesControllerProvider);
     final sales = ref.read(salesControllerProvider.notifier);
     final disabled = state.items.isEmpty;
-    final panel = _CartActionPanel(shiftId: shiftId, cashierId: cashierId, role: role);
+    final panel = _CartActionPanel(
+      shiftId: shiftId,
+      cashierId: cashierId,
+      role: role,
+      onShiftChanged: onShiftChanged,
+    );
     final tiles = panel._buildTiles(context, ref, state).take(8).toList();
     return Container(
       color: Hifi.chrome,
@@ -908,7 +998,7 @@ class _TabletActionStrip extends ConsumerWidget {
             width: 120,
             height: 72,
             child: ActionTile(
-              label: 'Отмена',
+              label: 'Clear',
               variant: HifiTileVariant.red,
               onTap: disabled ? null : sales.clearCart,
             ),
@@ -919,8 +1009,8 @@ class _TabletActionStrip extends ConsumerWidget {
               height: 72,
               child: ActionTile(
                 label: disabled
-                    ? 'ОПЛАТА'
-                    : 'ОПЛАТА · ${Money.format(state.payable)}',
+                    ? 'PAY'
+                    : 'PAY · ${Money.format(state.payable)}',
                 variant: HifiTileVariant.pay,
                 onTap: disabled ? null : () => panel._openPayment(context, ref, state),
                 fontSize: 22,

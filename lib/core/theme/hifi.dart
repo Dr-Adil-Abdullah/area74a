@@ -154,7 +154,7 @@ class HifiChrome extends StatelessWidget implements PreferredSizeWidget {
               Flexible(child: _chip(shiftNumber!)),
               const SizedBox(width: 8),
             ],
-            if (cashierName != null) Flexible(child: _chip('Кассир: $cashierName')),
+            if (cashierName != null) Flexible(child: _chip('Cashier: $cashierName')),
             for (final w in extras) ...[const SizedBox(width: 8), w],
           ]),
         ),
@@ -219,7 +219,7 @@ class _OnlineChip extends StatelessWidget {
           Text('●', style: TextStyle(color: fg, fontSize: 9)),
           const SizedBox(width: 4),
           Text(
-            online ? 'ONLINE' : 'OFFLINE · очередь 3',
+            online ? 'ONLINE' : 'OFFLINE',
             style: Hifi.ui(size: 11, weight: FontWeight.w600, color: fg).copyWith(letterSpacing: 0.3),
           ),
         ]),
@@ -235,7 +235,7 @@ class _LocaleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = locale == 'ru' ? 'ҚЗ' : 'РУ';
+    final label = locale.toUpperCase();
     return SizedBox(
       height: 24,
       child: TextButton(
@@ -814,7 +814,7 @@ class HifiTotals extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        if (subtotal != null) _row('Подытог', subtotal!),
+        if (subtotal != null) _row('Subtotal', subtotal!),
         if (vat != null && (vatLabel ?? MoneyConfig.taxLineLabel).isNotEmpty)
           _row(vatLabel ?? MoneyConfig.taxLineLabel, vat!),
         const SizedBox(height: 6),

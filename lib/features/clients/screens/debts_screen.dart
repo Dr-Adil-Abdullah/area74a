@@ -69,10 +69,10 @@ class _DebtsScreenState extends State<DebtsScreen> {
         final list = tempEntries.putIfAbsent(cid, () => <_Entry>[]);
         list.add(_Entry(
           when: created ?? DateTime.now(),
-          kind: status == 'closed' ? 'оплат.' : 'долг',
+          kind: status == 'closed' ? 'paid' : 'debt',
           label: status == 'closed'
-              ? 'Погашение чека'
-              : 'Долг (${(d['ItemCount'] as num?)?.toInt() ?? 1} поз.)',
+              ? 'Payment'
+              : 'Credit (${(d['ItemCount'] as num?)?.toInt() ?? 1} items)',
           amount: status == 'closed' ? -paid : amt,
         ));
         final d0 = byClient[cid]!;
@@ -97,7 +97,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
     } on Exception catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -114,7 +114,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
           leading: BackButton(color: Colors.white, onPressed: () => Navigator.of(context).maybePop()),
           // No cashier chip: this screen only knows the raw cashier UUID,
           // which is noise, not information, in the chrome bar.
-          shiftNumber: 'Долги',
+          shiftNumber: 'Credit / Debts',
         ),
         Expanded(
           child: _loading
@@ -160,7 +160,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
               onPressed: d == null ? null : () => _payDown(d),
               icon: const Text('💰'),
               label: Text(
-                d == null ? 'Погасить долг' : 'Погасить · ${Money.formatTenge(d.amount)}',
+                d == null ? 'Settle Debt' : 'Settle · ${Money.formatTenge(d.amount)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Hifi.ui(size: 14, weight: FontWeight.w700, color: Colors.white),
@@ -189,15 +189,15 @@ class _DebtsScreenState extends State<DebtsScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             for (final (label, action) in <(String, VoidCallback?)>[
-              ('Новый долг', () => _todo('Новый долг')),
-              ('Погашение', d == null ? null : () => _payDown(d)),
-              ('SMS напоминание', () => _todo('SMS напоминание')),
-              ('Карточка клиента', () => _todo('Карточка клиента')),
-              ('Полная история', () => _todo('Полная история')),
-              ('Экспорт .csv', () => _todo('Экспорт .csv')),
-              ('Печать выписки', () => _todo('Печать выписки')),
-              ('Фильтр > 14 дней', () => _todo('Фильтр > 14 дней')),
-              ('Фильтр > 30 дней', () => _todo('Фильтр > 30 дней')),
+              ('New Credit', () => _todo('New Credit')),
+              ('Settle Debt', d == null ? null : () => _payDown(d)),
+              ('SMS Reminder', () => _todo('SMS Reminder')),
+              ('Customer Card', () => _todo('Customer Card')),
+              ('Full History', () => _todo('Full History')),
+              ('Export .csv', () => _todo('Export .csv')),
+              ('Print Statement', () => _todo('Print Statement')),
+              ('Filter > 14 days', () => _todo('Filter > 14 days')),
+              ('Filter > 30 days', () => _todo('Filter > 30 days')),
             ])
               ListTile(
                 enabled: action != null,
@@ -242,13 +242,13 @@ class _DebtsScreenState extends State<DebtsScreen> {
           Padding(
             padding: const EdgeInsets.all(6),
             child: HifiSearchField(
-              hint: 'Имя / телефон',
+              hint: 'Name / phone',
               onChanged: (v) => setState(() => _search = v),
             ),
           ),
           Expanded(
             child: filtered.isEmpty
-                ? Center(child: Text('Нет должников', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))))
+                ? Center(child: Text('No open credit accounts', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))))
                 : ListView.builder(
                     padding: EdgeInsets.zero,
                     itemCount: filtered.length,
@@ -284,7 +284,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
             const SizedBox(height: 2),
             Row(children: [
               Expanded(child: Text(d.phone, style: Hifi.ui(size: 11, color: const Color(0xFF837B6D)))),
-              Text(daysAgo == 0 ? 'сегодня' : '$daysAgo' 'д', style: Hifi.ui(size: 11, color: const Color(0xFF837B6D))),
+              Text(daysAgo == 0 ? 'today' : '${daysAgo}d', style: Hifi.ui(size: 11, color: const Color(0xFF837B6D))),
             ]),
           ]),
         ),
@@ -295,7 +295,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
   Widget _detail() {
     final d = _selected;
     if (d == null) {
-      return Center(child: Text('Выберите клиента', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))));
+      return Center(child: Text('Select a customer', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))));
     }
     final daysAgo = d.lastDate == null ? 0 : DateTime.now().difference(d.lastDate!).inDays;
     final amountColor = daysAgo > 14 ? Hifi.danger : Hifi.chrome;
@@ -322,12 +322,12 @@ class _DebtsScreenState extends State<DebtsScreen> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             Text(d.name, style: Hifi.ui(size: 15, weight: FontWeight.w700, color: Hifi.chrome)),
             Text(
-              '${d.phone} · последняя операция ${d.lastDate == null ? '—' : _date(d.lastDate!)}',
+              '${d.phone} · last transaction ${d.lastDate == null ? '—' : _date(d.lastDate!)}',
               style: Hifi.ui(size: 11, color: const Color(0xFF837B6D)),
             ),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('ДОЛГ', style: Hifi.ui(size: 10, color: const Color(0xFF837B6D))),
+            Text('BALANCE', style: Hifi.ui(size: 10, color: const Color(0xFF837B6D))),
             Text(Money.formatTenge(d.amount), style: Hifi.mono(size: 22, weight: FontWeight.w700, color: amountColor)),
           ]),
         ]),
@@ -347,7 +347,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       return Container(
         decoration: BoxDecoration(border: Border.all(color: Hifi.border), borderRadius: BorderRadius.circular(4)),
         child: Center(
-          child: Text('Нет операций', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))),
+          child: Text('No transactions', style: Hifi.ui(size: 13, color: const Color(0xFFA59C8B))),
         ),
       );
     }
@@ -361,10 +361,10 @@ class _DebtsScreenState extends State<DebtsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: const BoxDecoration(color: Hifi.tableHead, border: Border(bottom: BorderSide(color: Hifi.border))),
             child: Row(children: [
-              SizedBox(width: 90, child: _th('ДАТА')),
-              Expanded(child: _th('ОПЕРАЦИЯ')),
-              SizedBox(width: 80, child: _th('ТИП', align: TextAlign.center)),
-              SizedBox(width: 110, child: _th('СУММА', align: TextAlign.right)),
+              SizedBox(width: 90, child: _th('DATE')),
+              Expanded(child: _th('TRANSACTION')),
+              SizedBox(width: 80, child: _th('TYPE', align: TextAlign.center)),
+              SizedBox(width: 110, child: _th('AMOUNT', align: TextAlign.right)),
             ]),
           ),
           Expanded(
@@ -373,7 +373,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
               itemCount: d.entries.length,
               itemBuilder: (context, i) {
                 final e = d.entries[i];
-                final typeColor = e.kind == 'долг' ? Hifi.danger : Hifi.success;
+                final typeColor = e.kind == 'debt' ? Hifi.danger : Hifi.success;
                 final amtColor = e.amount >= 0 ? Hifi.danger : Hifi.success;
                 final amtStr = e.amount >= 0 ? '+${Money.formatTenge(e.amount)}' : '−${Money.formatTenge(e.amount.abs())}';
                 return Container(
@@ -403,27 +403,27 @@ class _DebtsScreenState extends State<DebtsScreen> {
   Widget _rightPanel() {
     final d = _selected;
     final tiles = <ActionTile>[
-      ActionTile(label: 'Новый долг', hotkey: 'F4', variant: HifiTileVariant.green, onTap: () => _todo('Новый долг')),
-      ActionTile(label: 'Погашение', hotkey: 'F2', variant: HifiTileVariant.green, onTap: d == null ? null : () => _payDown(d)),
-      ActionTile(label: 'Поиск', hotkey: 'F3', onTap: () {}),
-      ActionTile(label: 'SMS напом.', onTap: () => _todo('SMS напоминание')),
-      ActionTile(label: 'Карточка', onTap: () => _todo('Карточка клиента')),
-      ActionTile(label: 'История', onTap: () => _todo('Полная история')),
-      ActionTile(label: 'Экспорт', onTap: () => _todo('Экспорт .csv')),
-      ActionTile(label: 'Печать', hotkey: 'F11', onTap: () => _todo('Печать выписки')),
-      ActionTile(label: 'Фильтр > 14д', onTap: () => _todo('Фильтр > 14 дней')),
-      ActionTile(label: 'Фильтр > 30д', onTap: () => _todo('Фильтр > 30 дней')),
+      ActionTile(label: 'New Credit', hotkey: 'F4', variant: HifiTileVariant.green, onTap: () => _todo('New Credit')),
+      ActionTile(label: 'Settle Debt', hotkey: 'F2', variant: HifiTileVariant.green, onTap: d == null ? null : () => _payDown(d)),
+      ActionTile(label: 'Search', hotkey: 'F3', onTap: () {}),
+      ActionTile(label: 'SMS Remind', onTap: () => _todo('SMS Reminder')),
+      ActionTile(label: 'Customer Card', onTap: () => _todo('Customer Card')),
+      ActionTile(label: 'History', onTap: () => _todo('Full History')),
+      ActionTile(label: 'Export', onTap: () => _todo('Export .csv')),
+      ActionTile(label: 'Print', hotkey: 'F11', onTap: () => _todo('Print Statement')),
+      ActionTile(label: 'Filter > 14d', onTap: () => _todo('Filter > 14 days')),
+      ActionTile(label: 'Filter > 30d', onTap: () => _todo('Filter > 30 days')),
     ];
     return ActionGridPanel(
       tiles: tiles,
       voidTile: ActionTile(
-        label: 'Закрыть',
+        label: 'Close',
         variant: HifiTileVariant.red,
         hotkey: 'Esc',
         onTap: () => Navigator.of(context).maybePop(),
       ),
       payTile: ActionTile(
-        label: d == null ? '💰 Погасить долг' : '💰 Погасить ${d.shortName} · ${Money.formatTenge(d.amount)}',
+        label: d == null ? '💰 Settle Debt' : '💰 Settle ${d.shortName} · ${Money.formatTenge(d.amount)}',
         variant: HifiTileVariant.pay,
         hotkey: 'F2',
         fontSize: 16,
@@ -438,7 +438,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        title: Text('Погашение долга · ${d.name}', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
+        title: Text('Settle Debt · ${d.name}', style: Hifi.ui(size: 16, weight: FontWeight.w700, color: Hifi.chrome)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -446,24 +446,24 @@ class _DebtsScreenState extends State<DebtsScreen> {
           decoration: InputDecoration(suffixText: MoneyConfig.symbol),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, ((double.tryParse(ctrl.text) ?? 0) * 100).round()),
-            child: const Text('Принять'),
+            child: const Text('Accept'),
           ),
         ],
       ),
     );
     if (amount == null || amount <= 0 || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Погашение ${Money.formatTenge(amount)} (в разработке)')),
+      SnackBar(content: Text('Settlement ${Money.formatTenge(amount)} (coming soon)')),
     );
     unawaited(_load());
   }
 
   void _todo(String label) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — в разработке'), duration: const Duration(seconds: 2)),
+      SnackBar(content: Text('$label — coming soon'), duration: const Duration(seconds: 2)),
     );
   }
 }
